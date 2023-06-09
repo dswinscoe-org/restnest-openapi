@@ -1,0 +1,40 @@
+trigger: none
+pr: none
+
+schedules:
+- cron: "0 22 * * 1-5"
+  displayName: Daily Weekdays 10pm Postman Repo refresh
+  branches:
+    include:
+    - master
+  always: true
+
+pool:
+  name: Small_2_CPU
+
+jobs: 
+  - job: refreshPostmanWorkspace
+    displayName: 'Refreshing Collections/Environments'
+    workspace: 
+      clean: all
+    steps:
+      - bash: gcloud auth revoke &>/dev/null || echo 'Agent account already active'
+        displayName: 'Activate compute agent account'
+
+      - task: NodeTool@0
+        inputs:
+          versionSpec: '16.x'
+        displayName: 'Install Node.js'
+
+      - task: npmAuthenticate@0
+        displayName: npm Authenticate
+        inputs:
+          workingFile: .npmrc
+
+      - script: |
+          yarn
+        displayName: 'yarn update'
+
+      - script: |
+          yarn restnest:startRepoRefresh
+        displayName: 'yarn restnest:startRepoRefresh'

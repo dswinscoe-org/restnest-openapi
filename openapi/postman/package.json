@@ -1,0 +1,28 @@
+{
+  "name": "restnest-postman-template",
+  "license": "UNLICENSED",
+  "version": "1.0.0",
+  "description": "Simple template for Newman-based Postman API POST of OpenAPI artifacts as Postman collection/environments for use in Postman restnest-e2e workspace",
+  "scripts": {
+    "prep": "yarn audit",
+    "restnest:openAPISetupPostman": "export GIT_LAST_MERGE_HASH=`git log --pretty=format:\"%ct-%h\"  --merges --first-parent -n 1`; cd scripts ; node --max-old-space-size=4096 openAPISetupPostman.js",
+    "restnest:openAPISetupPostman:local:service": "yarn restnest:openAPISetupPostman --gcpAccount 'api-project-728156133227' --serviceName 'service' --openApiFolder '../../../openapi/' --noRefSpecFolder 'generated-specs' --noRefSpecName 'service.yaml' --serviceApiKeyLookupName 'e2e_service_apikey' --headerApiKeyName 'x-api-key'",
+    "restnest:uploadCollection": "cd scripts/newman && node --max-old-space-size=4096 uploadCollection.js"
+  },
+  "// scripts explanation": {
+    "prep": "Renovate placeholder",
+    "restnest:openAPISetupPostman": "Standard Postman collection generation setup - expects parameters, indicated in following local call (supplied in Pipeline queue time variables, see /pipeline)",
+    "restnest:openAPISetupPostman:local": "Setup for local testing, e.g. : gcpAccount (api-project-728156133227), serviceName (domainService), openApiFolder (../../../openapi/), noRefSpecFolder (generated-specs), noRefSpecName (wes-ordering.yaml)",
+    "restnest:uploadCollection": "Posts generated collection with Postman API running in Newman"
+  },
+  "dependencies": {
+    "@google-cloud/secret-manager": "4.2.0",
+    "@openapi-contrib/openapi-schema-to-json-schema": "3.2.0",
+    "commander": "10.0.0",
+    "fs": "0.0.1-security",
+    "js-yaml": "4.1.0",
+    "newman": "5.3.2",
+    "openapi-to-postmanv2": "4.6.0",
+    "prettier": "2.8.2"
+  }
+}

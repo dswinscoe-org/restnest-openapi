@@ -1,0 +1,39 @@
+{
+	"values": [
+		{
+			"key": "workspace_name",
+			"value": "restnest-postman",
+			"enabled": true
+		},
+		{
+			"key": "workspace_id",
+			"value": "52753734-b690-4c28-a07f-65685f04e52e",
+			"enabled": true
+		},
+		{
+			"key": "postman-api-key",
+			"value": "<will be replaced automatically by openAPISetupPostman.js - requires gcloud auth login>",
+			"type": "secret",
+			"enabled": true
+		},
+		{
+			"key": "service_name",
+			"value": "<will be replaced automatically by openAPISetupPostman.js parameter>",
+			"enabled": true
+		},
+		{
+			"key": "service_collection",
+			"value": "<will be replaced automatically by openAPISetupPostman.js>",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "service_environments",
+			"value": "<will be replaced automatically by openAPISetupPostman.js>",
+			"type": "default",
+			"enabled": true
+		}
+	],
+	"name": "Globals",
+	"_postman_variable_scope": "globals"
+}

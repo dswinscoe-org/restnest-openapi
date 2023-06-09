@@ -1,0 +1,229 @@
+{
+  "values": [
+    {
+      "key": "gcp-service-account-project",
+      "value": "<must be manually configured - set to GCP Service Account Project Id, e.g. api-project-728156133227>",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "postman-api-key",
+      "value": "<admin apikey will be replaced automatically by scripts/restnest-postman-sync-repo.js - requires gcloud auth login>",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "postman-api-key-admin",
+      "value": "<admin apikey will be replaced automatically by scripts/restnest-postman-sync-repo.js - copy of postman-api-key for switching>",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "postman-api-key-developer",
+      "value": "<**DO NOT ENTER HERE** REQUIRED to create dev workspace/collection fork - will be prompted on restnest:start>",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "openapi_repo_workspace_name",
+      "value": "restnest-openapi",
+      "enabled": true
+    },
+    {
+      "key": "openapi_repo_workspace_id",
+      "value": "f84b6021-ed78-4245-b4ce-fbbba11013c9",
+      "enabled": true
+    },
+    {
+      "key": "openapi_repo_workspacesync_collection_id",
+      "value": "495009e1-093c-47b6-b2ad-cca7727570ff",
+      "enabled": true
+    },
+    {
+      "key": "required_service_repo_collections",
+      "value": {
+        "restnest-e2e-services": true
+      },
+      "enabled": true
+    },
+    {
+      "key": "ignored_repo_collections",
+      "value": {
+        "ServicePublish": true,
+        "WorkspaceSyncLoader": true,
+        "WorkspaceSync": true
+      },
+      "enabled": true
+    },
+    {
+      "key": "repo_workspace_name",
+      "value": "<will be replaced automatically by scripts/restnest-postman-sync-repo.js, based on Azure Repo origin name, e.g. restnest-e2e-domain>",
+      "enabled": true
+    },
+    {
+      "key": "repo_workspace_id",
+      "value": "<will be replaced automatically by scripts/newman/restnest-postman-prep-repo.js>",
+      "enabled": true
+    },
+    {
+      "key": "repo_workspace",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-postman-prep-repo.js>"
+      },
+      "enabled": true
+    },
+    {
+      "key": "repo_workspacesync_collection_id",
+      "value": "<will be replaced automatically by scripts/newman/restnest-postman-prep-repo.js>",
+      "enabled": true
+    },
+    {
+      "key": "all_repo_collections",
+      "value": [
+        "<will be replaced automatically by scripts/newman/restnest-postman-sync-workspace.js>"
+      ],
+      "enabled": true
+    },
+    {
+      "key": "all_repo_services_collections",
+      "value": [
+        "<will be replaced automatically by scripts/newman/restnest-postman-sync-workspace.js>"
+      ],
+      "enabled": true
+    },
+    {
+      "key": "all_repo_environments",
+      "value": [
+        "<will be replaced automatically by scripts/newman/restnest-postman-sync-workspace.js>"
+      ],
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_collection_name",
+      "value": "restnest-e2e",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_services_collection_name",
+      "value": "restnest-e2e-services",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_services_collection",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-postman-sync-services-collection.js>"
+      },
+      "enabled": true
+    },
+    {
+      "key": "e2e_git_repo_name",
+      "value": "<will be replaced automatically by scripts/restnest-postman-sync-repo.js - same as repo name>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_git_repo_feature_task",
+      "value": "<will be replaced automatically by scripts/restnest-postman-sync-repo.js - same as repo name>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_workspace_name",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-workspace.js - same as repo name>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_workspace_id",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-workspace.js>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_workspace",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-e2e-sync.workspace.js>"
+      },
+      "enabled": true
+    },
+    {
+      "key": "e2e_developer_workspace_name",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-workspace.js - e2e_git_repo_name-e2e_git_repo_feature_task>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_developer_workspace_id",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-workspace.js>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_developer_workspace",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-workspace.js>"
+      },
+      "enabled": true
+    },
+    {
+      "key": "all_e2e_collections",
+      "value": [
+        "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>"
+      ],
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_main_collection_uid",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_main_collection",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>"
+      },
+      "enabled": true
+    },
+    {
+      "key": "all_e2e_developer_collections",
+      "value": [
+        "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>"
+      ],
+      "enabled": true
+    },
+    {
+      "key": "all_e2e_developer_service_collections",
+      "value": [
+        "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>"
+      ],
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_developer_collection_uid",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_developer_service_collection_uid",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_developer_collection",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>"
+      },
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_developer_service_collection",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-collection.js>"
+      },
+      "enabled": true
+    },
+    {
+      "key": "all_e2e_environments",
+      "value": [
+        "<will be replaced automatically by scripts/newman/restnest-e2e-sync-environments.js>"
+      ],
+      "enabled": true
+    }
+  ],
+  "name": "Globals",
+  "_postman_variable_scope": "globals"
+}

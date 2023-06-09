@@ -1,0 +1,39 @@
+trigger:
+- master
+
+pool:
+  name: Small_2_CPU
+
+jobs: 
+  - job: publishPostmanWorkspace
+    displayName: 'Publishing Collection/Environments'
+    workspace: 
+      clean: all
+    steps:
+      - bash: gcloud auth revoke &>/dev/null || echo 'Agent account already active'
+        displayName: 'Activate compute agent account'
+
+      - task: NodeTool@0
+        inputs:
+          versionSpec: '16.x'
+        displayName: 'Install Node.js'
+
+      - task: npmAuthenticate@0
+        displayName: npm Authenticate
+        inputs:
+          workingFile: .npmrc
+
+      - script: |
+          yarn
+        workingDirectory: openapi/postman
+        displayName: 'yarn openapi/postman'
+
+      - script: |
+          yarn restnest:openAPISetupPostman --gcpAccount '$(gcpAccount)' --serviceName '$(serviceName)' --openApiFolder '$(openApiFolder)' --noRefSpecFolder '$(noRefSpecFolder)' --noRefSpecName '$(noRefSpecName)'
+        workingDirectory: $(Build.SourcesDirectory)/openapi/postman
+        displayName: 'yarn restnest:openAPISetupPostman'
+
+      - script: |
+          yarn restnest:uploadCollection
+        workingDirectory: $(Build.SourcesDirectory)/openapi/postman
+        displayName: 'yarn restnest:uploadCollection'

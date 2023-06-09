@@ -1,0 +1,51 @@
+trigger: none
+pr: none
+
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily midnight Newman test run
+  branches:
+    include:
+    - master
+  always: true
+
+pool:
+  name: Medium_4_CPU
+
+jobs: 
+  - job: RESTNEST
+    displayName: 'Newman test run'
+    workspace: 
+      clean: all
+    steps:
+      - bash: gcloud auth revoke &>/dev/null || echo 'Agent account already active'
+        displayName: 'Activate compute agent account'
+
+      - task: NodeTool@0
+        inputs:
+          versionSpec: '16.x'
+        displayName: 'Install Node.js'
+
+      - task: npmAuthenticate@0
+        displayName: npm Authenticate
+        inputs:
+          workingFile: .npmrc
+
+      - script: |
+          yarn
+        displayName: 'yarn update'
+
+      - task: Grunt@0
+        inputs:
+          gruntFile: 'Gruntfile.js'
+          targets: runSuite
+          arguments: --folderId=$(FOLDERID) --env=$(ENV) --collection=$(COLLECTION)
+          gruntCli: 'node_modules/grunt-cli/bin/grunt'
+      
+      - task: PublishTestResults@2
+        inputs:
+          testResultsFormat: 'JUnit'
+          testResultsFiles: '*.xml'
+          searchFolder: scripts/newman/reports
+          mergeTestResults: false
+          failTaskOnFailedTests: false

@@ -1,0 +1,544 @@
+{
+	"info": {
+		"_postman_id": "dc6ae38b-2326-411a-ac5e-9fbfac20984b",
+		"name": "ServicePublish",
+		"description": "Collection to publish service auto-generated collections\n\n\n# Overview\n\nSee Postman API Collection for complete fork",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "17866049"
+	},
+	"item": [
+		{
+			"name": "Collections",
+			"item": [
+				{
+					"name": "Single workspace - workspace_id",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"(eval(globals.helper_ServicePublish)).cleanupGlobals();",
+									"postman.setNextRequest(null)"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"(eval(globals.helper_ServicePublish)).requiredGlobalsDefined_Test();",
+									"(eval(globals.helper_ServicePublish)).jsonResponseOK_Test();",
+									"",
+									"pm.test(\"response json should contain collections\", function () {",
+									"    pm.expect(pm.response.json()).to.have.property('workspace').and.be.an('object');",
+									"    const workspace = pm.response.json()['workspace']",
+									"    pm.expect(workspace).to.have.property('collections').and.be.an('array');",
+									"    const collection = workspace.collections.filter((collection) => collection.name === pm.globals.get(\"service_name\"))",
+									"    pm.globals.set(\"workspace\", workspace)",
+									"    ",
+									"    // Assume Create",
+									"    postman.setNextRequest(\"Create Collection - Service\")",
+									"",
+									"    // TODO: Only create new collections if they differ, otherwise skip to environments if same",
+									"    // TIP: check if collection exists that begins with service name and then compare",
+									"    const serviceCollections = workspace.collections.filter((collection) => collection.name.startsWith(pm.globals.get(\"service_name\")))",
+									"    if (serviceCollections.length >=1) {",
+									"        // compare",
+									"        // set environemnts as next request",
+									"    }",
+									"",
+									"    // If same servie_named collection found in workspace, get collection",
+									"    pm.expect(collection, 'Collection not found - will create').to.be.an('array').and.have.lengthOf(1)",
+									"    pm.globals.set(\"collection_uid\", collection[0].uid)",
+									"    postman.setNextRequest(\"Single Collection - service_collection\")",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.getpostman.com/workspaces/{{workspace_id}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"getpostman",
+								"com"
+							],
+							"path": [
+								"workspaces",
+								"{{workspace_id}}"
+							]
+						},
+						"description": "Access the contents of a workspace that is accessible to you using its id (`id`). Includes the collections, environments, mocks and monitors of that workspace.\n\n> Requires <a href=\"#authentication\">API Key</a> as `X-Api-Key` request header or `apikey` URL query parameter."
+					},
+					"response": []
+				},
+				{
+					"name": "Single Collection - service_collection",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Prerequisite tests to ensure that the relevant environment variables are present",
+									"pm.test('\"collection_uid\" variable should be present', function () {",
+									"    pm.expect(pm.variables.get('collection_uid')).to.be.a('string');",
+									"});",
+									"",
+									"(eval(globals.helper_ServicePublish)).jsonResponseOK_Test();",
+									"",
+									"pm.test(\"response json should contain one collection\", function () {",
+									"    pm.expect(pm.response.json()).to.have.property('collection').and.be.an('object');",
+									"    const collection = pm.response.json()['collection']",
+									"    pm.globals.set('collection_id', collection.info._postman_id)",
+									"    postman.setNextRequest('Update Collection - Service')",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"postman.setNextRequest(null)"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.getpostman.com/collections/{{collection_uid}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"getpostman",
+								"com"
+							],
+							"path": [
+								"collections",
+								"{{collection_uid}}"
+							]
+						},
+						"description": "Access the contents of a collection that is accessible to you using its unique id (`uid`).\n\n> Requires <a href=\"#authentication\">API Key</a> as `X-Api-Key` request header or `apikey` URL query parameter."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Collection - Service",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"(eval(globals.helper_ServicePublish)).jsonResponseOK_Test();",
+									"",
+									"pm.test(\"response json should contain one collection\", function () {",
+									"    pm.expect(pm.response.json()).to.have.property('collection').and.be.an('object').and.to.include.keys(['id', 'name', 'uid']);",
+									"    postman.setNextRequest('Single Environment - service_environments')",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"postman.setNextRequest(null)",
+									"const collection = pm.globals.get('service_collection')",
+									"pm.variables.set('service_collection', `{\"collection\": ${JSON.stringify(collection)}}`)"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{{service_collection}}"
+						},
+						"url": {
+							"raw": "https://api.getpostman.com/collections?workspace={{workspace_id}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"getpostman",
+								"com"
+							],
+							"path": [
+								"collections"
+							],
+							"query": [
+								{
+									"key": "workspace",
+									"value": "{{workspace_id}}"
+								}
+							]
+						},
+						"description": "This endpoint allows you to create collections using the Postman Collection v2 format. For more information about the v2 schema, check the format [here](https://schema.getpostman.com/json/collection/v2.0.0/docs/index.html).\n\nOn successful creation of the collection, the response returns the collection `name`, `id` and the `uid`.\n\nYou can also specify the context of a workspace to create a collection in directly by passing the `workspace` as a query param.\n\n> Requires <a href=\"#authentication\">API Key</a> as `X-Api-Key` request header or `apikey` URL query parameter."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Collection - Service",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Prerequisite tests to ensure that the relevant environment variables are present",
+									"pm.test('\"collection_uid\" variable should be present', function () {",
+									"    pm.expect(pm.variables.get('collection_uid')).to.be.a('string');",
+									"});",
+									"",
+									"(eval(globals.helper_ServicePublish)).jsonResponseOK_Test();",
+									"",
+									"pm.test(\"response json should contain one collection\", function () {",
+									"    pm.expect(pm.response.json()).to.have.property('collection').and.be.an('object');",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const collection = pm.globals.get('service_collection')",
+									"collection.info._postman_id = pm.environment.get('collection_id')",
+									"pm.variables.set('service_collection', `{\"collection\": ${JSON.stringify(collection)}}`)"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{{service_collection}}"
+						},
+						"url": {
+							"raw": "https://api.getpostman.com/collections/{{collection_uid}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"getpostman",
+								"com"
+							],
+							"path": [
+								"collections",
+								"{{collection_uid}}"
+							]
+						},
+						"description": "This endpoint allows you to update an existing collection using the Postman Collection v2 format. For more information about the v2 schema, check the format [here](https://schema.getpostman.com/json/collection/v2.0.0/docs/index.html).\n\nOn successful updation of the collection, the response returns the collection `name`, `id` and `uid`.\n\n> Requires <a href=\"#authentication\">API Key</a> as `X-Api-Key` request header or `apikey` URL query parameter.\n\nNote: Please be careful when trying to update the collection, as the existing collection will be replaced by the request body."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Environments",
+			"item": [
+				{
+					"name": "Single Environment - service_environments",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.variables.get('environment_uid') === 'null') {",
+									"    pm.test(\"error response is ok\", function () {",
+									"        pm.response.to.have.status(404);",
+									"    })",
+									"    postman.setNextRequest('Create Environment - Service')",
+									"",
+									"} else {",
+									"    (eval(globals.helper_ServicePublish)).jsonResponseOK_Test();",
+									"    pm.globals.set('environment_uid', pm.variables.get('environment_uid'))",
+									"    postman.setNextRequest('Delete Environment  - Service')",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"postman.setNextRequest(null)",
+									"",
+									"// Check for existing environments",
+									"if (!pm.globals.has(\"workspace_environments\")) {",
+									"    pm.expect(pm.globals.has(\"workspace\"), 'global variable \"workspace\" must be available - send request \"GET Single workspace\"').to.be.true",
+									"    const environments = pm.globals.get(\"workspace\")['environments'] || []",
+									"    pm.globals.set(\"workspace_environments\", environments)",
+									"}",
+									"// Check for service environments queue (to be created/updated)",
+									"if (!pm.globals.has(\"service_environments_queue\")) {",
+									"    pm.expect(pm.globals.has(\"service_environments\"), 'global variable \"service_environments\" must be available').to.be.true",
+									"    pm.expect(pm.globals.has(\"service_name\"), 'global variable \"service_name\" must be available').to.be.true",
+									"    pm.globals.set(\"service_environments_queue\", pm.globals.get(\"service_environments\"))",
+									"}",
+									"",
+									"// Check next in service queue",
+									"const env = pm.globals.get(\"service_environments_queue\").at(-1)",
+									"const serviceNameSplit = pm.globals.get(\"service_name\").split('-')",
+									"serviceNameSplit.splice(-2)",
+									"pm.globals.set('service_name_short', serviceNameSplit.join('-'))",
+									"const envName = `${env.name}.${pm.globals.get('service_name_short')}`",
+									"const workspace_environment = pm.globals.get(\"workspace_environments\").filter((env) => env.name === envName)",
+									"pm.variables.set(\"environment_uid\", workspace_environment.length > 0 ? workspace_environment[0].uid : \"null\")    "
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.getpostman.com/environments/{{environment_uid}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"getpostman",
+								"com"
+							],
+							"path": [
+								"environments",
+								"{{environment_uid}}"
+							]
+						},
+						"description": "Access the contents of an environment that is accessible to you using its unique id (`uid`).\n\n> Requires <a href=\"#authentication\">API Key</a> as `X-Api-Key` request header or `apikey` URL query parameter."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Environment  - Service",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"postman.setNextRequest(null)"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"(eval(globals.helper_ServicePublish)).jsonResponseOK_Test();",
+									"postman.setNextRequest('Create Environment - Service')"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "https://api.getpostman.com/environments/{{environment_uid}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"getpostman",
+								"com"
+							],
+							"path": [
+								"environments",
+								"{{environment_uid}}"
+							]
+						},
+						"description": "This endpoint allows you to delete a single environment based on an environment's unique `uid`.\n\n> Requires <a href=\"#authentication\">API Key</a> as `X-Api-Key` request header or `apikey` URL query parameter."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Environment - Service",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"postman.setNextRequest(null)",
+									"",
+									"pm.expect(pm.globals.has('service_environments_queue'))",
+									"const queue = pm.globals.get('service_environments_queue')",
+									"const env = queue.pop()",
+									"pm.globals.set('service_environments_queue', queue)",
+									"env.name = `${env.name }.${pm.globals.get(\"service_name_short\")}`",
+									"",
+									"pm.variables.set('service_environment', `{\"environment\": ${JSON.stringify(env)}}`)"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"(eval(globals.helper_ServicePublish)).jsonResponseOK_Test();",
+									"",
+									"if (pm.globals.get(\"service_environments_queue\").length === 0) {",
+									"    (eval(globals.helper_ServicePublish)).cleanupGlobals();",
+									"} else {",
+									"    postman.setNextRequest('Single Environment - service_environments')",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{{service_environment}}"
+						},
+						"url": {
+							"raw": "https://api.getpostman.com/environments?workspace={{workspace_id}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"getpostman",
+								"com"
+							],
+							"path": [
+								"environments"
+							],
+							"query": [
+								{
+									"key": "workspace",
+									"value": "{{workspace_id}}"
+								}
+							]
+						},
+						"description": "A sample body is added to the request that conforms to the following JSON schema:\n\n```json\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"environment\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"name\": {\n              \"type\": \"string\",\n              \"maxLength\": 254,\n              \"minLength\": 1\n            },\n        \"values\": {\n          \"type\": \"array\",\n          \"maxItems\": 100,\n          \"additionalItems\": false,\n          \"items\": {\n              \"type\": \"object\",\n              \"properties\": {\n                \"key\": {\n                  \"type\": \"string\",\n                  \"maxLength\": 254\n                  \"minLength\": 1\n                },\n                \"value\": { \"type\": \"string\" },\n                \"enabled\": { \"type\": \"boolean\" }\n              },\n              \"required\": [\"key\", \"value\"]\n            }\n        }\n      },\n      \"required\": [\"name\"]\n    }\n  },\n  \"required\": [\"environment\"]\n}\n```\n\nOn successful creation of the environment, the API returns the environment name and `id`.\n\nYou can also specify the context of a workspace to create an environment in directly by passing the `workspace` as a query param.\n\n> Requires <a href=\"#authentication\">API Key</a> as `X-Api-Key` request header or `apikey` URL query parameter."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "value",
+				"value": "{{postman-api-key}}",
+				"type": "string"
+			},
+			{
+				"key": "key",
+				"value": "X-API-Key",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Setup global helper functions",
+					"pm.globals.set('helper_ServicePublish', function helper() {",
+					"    const helpers = {} // Helper functions",
+					"",
+					"    // Cleanup globals - normally called on start / completion of run ",
+					"    helpers.cleanupGlobals = () => {",
+					"        // From environment globals import",
+					"        const keeplist = {",
+					"            'gcp-service-account-project': true,",
+					"            'service_name': true,",
+					"            'service_name_short': true,",
+					"            'workspace_name': true,",
+					"            'workspace_id': true,",
+					"            'postman-api-key': true,",
+					"            'service_collection': true,",
+					"            'service_environments': true,",
+					"            'helper_ServicePublish': true",
+					"        }",
+					"        // Unset all not in list",
+					"        const globalsVars = pm.globals.toObject()",
+					"        for (let key in globalsVars) {",
+					"            if (!(key in keeplist)) {",
+					"                pm.globals.unset(key)",
+					"            }",
+					"        }",
+					"    }",
+					"",
+					"    /*** TEST FUNCTIONS ***/",
+					"    helpers.requiredGlobalsDefined_Test = () => {",
+					"        pm.test('\"postman-api-key\" variable should be present', function () {",
+					"            pm.expect(pm.variables.get('postman-api-key')).to.be.a('string');",
+					"        });",
+					"        pm.test('\"workspace_id\" variable should be present', function () {",
+					"            pm.expect(pm.variables.get('workspace_id')).to.be.a('string');",
+					"        });",
+					"        pm.test('\"service_name\" variable should be present', function () {",
+					"            pm.expect(pm.variables.get('service_name')).to.be.a('string');",
+					"        });",
+					"    }",
+					"",
+					"    helpers.jsonResponseOK_Test = () => {",
+					"        pm.test(\"response is ok\", function () {",
+					"            pm.response.to.have.status(200);",
+					"        });",
+					"",
+					"        pm.test(\"response json data should not have errors\", function () {",
+					"            pm.response.to.have.jsonBody();",
+					"            pm.response.to.not.have.jsonBody('error');",
+					"        });",
+					"    }",
+					"",
+					"    return helpers",
+					"} + 'helper();')"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}

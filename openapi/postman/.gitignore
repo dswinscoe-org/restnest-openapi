@@ -1,0 +1,6 @@
+.DS_Store
+node_modules
+collection/*
+!collection/ServicePublish.postman_collection.json
+environment/restnest-postman.postman_globals.json
+!scripts/**/*.js

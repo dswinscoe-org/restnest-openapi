@@ -1,0 +1,70 @@
+{
+  "values": [
+    {
+      "key": "gcp-service-account-project",
+      "value": "api-project-728156133227",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "postman-api-key",
+      "value": "<admin apikey will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js - requires gcloud auth login>",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "repo_workspacesync_collection_id",
+      "value": "17866049-2aaa67ba-6223-4f11-9c68-02fabed7247f",
+      "enabled": true
+    },
+    {
+      "key": "e2e_workspace_name",
+      "value": "restnest-e2e",
+      "enabled": true
+    },
+    {
+      "key": "e2e_workspace_id",
+      "value": "6e4dd4e0-81a1-43c1-95a3-8cda918e46ee",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_collection_name",
+      "value": "restnest-e2e",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_main_collection_uid",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_main_collection",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js>"
+      }
+    },
+    {
+      "key": "e2e_restnest_service_collection_name",
+      "value": "restnest-e2e-services",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_main_service_collection_uid",
+      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js>",
+      "enabled": true
+    },
+    {
+      "key": "e2e_restnest_main_service_collection",
+      "value": {
+        "comment": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js>"
+      }
+    },
+    {
+      "key": "all_e2e_environments",
+      "value": [
+        "<will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js>"
+      ],
+      "enabled": true
+    }
+  ]
+}
