@@ -212,7 +212,6 @@ function augmentCollectionWithServices() {
       delete endpoint.id;
 
       // Add collection authorization to all endpoints
-      // TODO: TOX Ticket in backlog to add security schema to all openapis (apikey or OAuth)
       endpoint.request.auth = auth;
 
       // Add base parameters for all request methods
@@ -285,7 +284,7 @@ function augmentCollectionWithServices() {
             fieldList,
             flatPath + (flatPath === '' ? key : `.${key}`)
           );
-        } else if (schema[key].type) {
+        } else if (schema[key].type || schema[key].oneOf) {
           const field = flatPath === '' ? '' : `${flatPath}.`;
           fieldList.push({
             key: `_${field}${key}_mock`,

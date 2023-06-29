@@ -30,6 +30,7 @@ module.exports.mocker = async function (workstepParams) {
   const isLocaleUnresolved =
     !workstepParams._localeMock || workstepParams._localeMock?.startsWith('{{');
   faker.locale = `${isLocaleUnresolved ? 'de' : workstepParams._localeMock}`;
+  jsf.option({ useDefaultValue: true, alwaysFakeOptionals: true});
   jsf.extend('faker', () => {
     return faker;
   });
