@@ -1,7 +1,8 @@
 {
-  "name": "restnest-e2e",
+  "name": "restnest-openapi",
   "license": "BSD-2-Clause",
-  "version": "2.0.0",
+  "author": "Don Swinscoe <dswinscoe@gmail.com>",
+  "version": "1.0.0",
   "description": "Postman-based framework for testing multi-repo, OpenAPI-REST-service-based requests in complex automated user journey scenarios (using Postman Runner), as well as, manual spot tests or easy test data creation",
   "scripts": {
     "restnest:start": "yarn && yarn restnest:startDev",
@@ -40,7 +41,7 @@
     "restnest:postman-sync-repo": "2. Initiates repo sync to configure, load and run Newman collections to download Postman repo artifacts",
     "restnest:postman-sync-repo-git": "2.1. Determines Azure TaskId from git feature branch name, retrieves Postman API credentials, and stores in restnest-postman.postman_globals.json",
     "restnest:postman-sync-repo-git-main": "2.1 TEST-ONLY: simulate main branch",
-    "restnest:postman-prep-repo":"2.2. Check Postman repo workspace against git repo, and create new Postman repo from Greenfield repo if not found",
+    "restnest:postman-prep-repo":"2.2. On Initial call, create new 'Postman Repo' with git repo fork name and fork all collections from Postman restnest-openapi workspace",
     "restnest:postman-sync-repo-collection": "2.3. Runs Newman WorkspaceSyncLoader to download WorkspaceSync collection from Postman repo workspace for restnest:e2e scripts",
     "restnest:postman-sync-repo-workspace": "2.4. Runs Newman on WorkspaceSync collection's Repo-Download folder to download newest repo collections and environments",
     "restnest:postman-sync-repo-services-collection": "2.5. Augments services collection with most current services and uploads with WorkspaceSync collection's Repo-Upload folder",

@@ -1,6 +1,7 @@
 {
   "name": "restnest-postman-template",
-  "license": "UNLICENSED",
+  "license": "BSD-2-Clause",
+  "author": "Don Swinscoe <dswinscoe@gmail.com>",
   "version": "1.0.0",
   "description": "Simple template for Newman-based Postman API POST of OpenAPI artifacts as Postman collection/environments for use in Postman restnest-e2e workspace",
   "scripts": {
@@ -12,7 +13,7 @@
   "// scripts explanation": {
     "prep": "Renovate placeholder",
     "restnest:openAPISetupPostman": "Standard Postman collection generation setup - expects parameters, indicated in following local call (supplied in Pipeline queue time variables, see /pipeline)",
-    "restnest:openAPISetupPostman:local": "Setup for local testing, e.g. : gcpAccount (api-project-728156133227), serviceName (domainService), openApiFolder (../../../openapi/), noRefSpecFolder (generated-specs), noRefSpecName (wes-ordering.yaml)",
+    "restnest:openAPISetupPostman:local": "Setup for local testing, e.g. : gcpAccount (google cloud project id), workspaceId (Postman workspace id), workspaceName (Postman workspace name), serviceName (domain Service name), openApiFolder (../../../openapi/), noRefSpecFolder (generated-specs), noRefSpecName (spec.yaml)",
     "restnest:uploadCollection": "Posts generated collection with Postman API running in Newman"
   },
   "dependencies": {

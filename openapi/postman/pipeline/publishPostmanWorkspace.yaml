@@ -29,7 +29,7 @@ jobs:
         displayName: 'yarn openapi/postman'
 
       - script: |
-          yarn restnest:openAPISetupPostman --gcpAccount '$(gcpAccount)' --serviceName '$(serviceName)' --openApiFolder '$(openApiFolder)' --noRefSpecFolder '$(noRefSpecFolder)' --noRefSpecName '$(noRefSpecName)'
+          yarn restnest:openAPISetupPostman --gcpAccount '$(gcpAccount)' --workspaceId '${workspaceId}' --workspaceName '${workspaceName}' --serviceName '$(serviceName)' --openApiFolder '$(openApiFolder)' --noRefSpecFolder '$(noRefSpecFolder)' --noRefSpecName '$(noRefSpecName)'
         workingDirectory: $(Build.SourcesDirectory)/openapi/postman
         displayName: 'yarn restnest:openAPISetupPostman'
 

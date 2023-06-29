@@ -14,7 +14,7 @@ if (!(gitOrigin && gitFeature)) {
   console.error('Current repository does not have a remote origin and/or is not feature branch.');
   process.exit(1);
 }
-const gitOriginSplit = gitOrigin.split('/');
+const gitOriginSplit = gitOrigin.replace('.git','').split('/');
 const gitRepoName = gitOriginSplit[gitOriginSplit.length - 1];
 if (!gitRepoName.startsWith('restnest-openapi-')) {
   console.error(

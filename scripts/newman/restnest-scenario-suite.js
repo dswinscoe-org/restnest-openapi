@@ -55,13 +55,21 @@ async function runScenario(scenario) {
     );
     fs.writeFileSync(newmanGlobalsPath, JSON.stringify(emptyGlobals, null, 2));
 
-    // Setup environment
+    // Setup environment files
     const iteration = scenario.iteration > 1 ? `-${scenario.iteration}` : '';
+    // Fresh environment
     const environmentsE2EPath = path.join(
       rootE2E,
       'environment',
       `${scenario.environment}.postman_environment.json`
     );
+    // After-Newman scenario run environment file for import to Postman
+    const environmentsE2EScenarioPath = path.join(
+      rootE2E,
+      'environment',
+      `${scenario.environment}-${scenario.scenarioFolderId}.postman_environment.json`
+    );
+    // Newman runtime environment file
     const newmanEnvironmentPath = path.join(
       __dirname,
       'environment',
@@ -143,7 +151,7 @@ async function runScenario(scenario) {
     // Rewrite XUnit file
     rewriteJUnitFile(reportsPathXML);
     // Persist summary globals / environment
-    persistEnvironment(newmanEnvironmentPath, summary);
+    persistEnvironment(newmanEnvironmentPath, environmentsE2EScenarioPath, summary);
     persistGlobals(newmanGlobalsPath, summary);
 
     console.log('\nScenario complete: ', JSON.stringify(scenario, null, 2));
@@ -167,11 +175,14 @@ async function runScenario(scenario) {
       fs.writeFileSync(newmanGlobalsPath, JSON.stringify(globals, null, 2));
     }
   }
-  function persistEnvironment(newmanEnvironmentPath, summary) {
+  function persistEnvironment(newmanEnvironmentPath, environmentsE2EScenarioPath, summary) {
     if (summary.environment) {
       const env = JSON.parse(fs.readFileSync(newmanEnvironmentPath, { encoding: 'UTF8' }));
       syncArraysOfKeyValueObject(summary.environment.values, env.values);
       fs.writeFileSync(newmanEnvironmentPath, JSON.stringify(env, null, 2));
+      // Change environment name to include folder id, and write back to restnest-e2e/environment
+      env.name = path.basename(environmentsE2EScenarioPath, '.json').split('.').slice(0, -1).join('.');
+      fs.writeFileSync(environmentsE2EScenarioPath, JSON.stringify(env, null, 2));
     }
   }
   // return usages in megabytes(MB)

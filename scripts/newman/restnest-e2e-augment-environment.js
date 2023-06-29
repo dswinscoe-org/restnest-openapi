@@ -17,7 +17,7 @@ function augmentEnvironments() {
   const e2e_environmentBaseFilePath = resolve(e2e_environmentDir, e2e_environmentName);
   const e2e_environment = require(e2e_environmentBaseFilePath); // base file for all environments
 
-  const expectedStages = { 'PR-1': true, PR1: true, DEV: true, SANDBOX: true, STAGING: true };
+  const expectedStages = { 'PR-1': true, PR1: true, DEV: true, SANDBOX: true, STAGING: true, PROD:true };
   const newEnvTemplate = { name: '', values: [], isPublic: false };
 
   createEmptyEnvironments();

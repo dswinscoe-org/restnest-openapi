@@ -14,6 +14,8 @@ const { program } = require('commander');
  */
 program
   .option('--gcpAccount <value>', 'Google Cloud account')
+  .option('--workspaceId <value>', 'Repo Workspace Id')
+  .option('--workspaceName <value>', 'Repo Workspace Name')  
   .option('--serviceName <value>', 'Repo Service Name')
   .option('--openApiFolder <value>', 'OpenAPI folder relative to this file')
   .option('--noRefSpecFolder <value>', 'No-Reference Spec Folder')
@@ -39,6 +41,8 @@ program
 const {
   gcpAccount,
   globalNoRefSpecPath,
+  workspaceId,
+  workspaceName,
   serviceName,
   serviceApikeyLookupName,
   headerApiKeyName,
@@ -68,6 +72,8 @@ function prepServiceConfiguration(options) {
   if (
     !(
       options.gcpAccount &&
+      options.workspaceId &&
+      options.workspaceName &&
       options.serviceName &&
       options.openApiFolder &&
       options.noRefSpecFolder &&
@@ -83,6 +89,8 @@ function prepServiceConfiguration(options) {
   return {
     gcpAccount: options.gcpAccount,
     globalNoRefSpecPath: globalNoRefSpecPath,
+    workspaceId: options.workspaceId,
+    workspaceName: options.workspaceName,
     serviceName: options.serviceName,
     serviceApikeyLookupName: options.serviceApiKeyLookupName,
     headerApiKeyName: options.headerApiKeyName,
@@ -190,7 +198,7 @@ async function createCollection() {
         title: specTitle = '',
         version: specVersion = '',
         description: specDesc = '',
-        contact: { name: specCName = '', url: specCURL = '', email: specEMail = '' },
+        contact: specContact =  { name: specCName = '', url: specCURL = '', email: specEMail = '' },
       },
     } = specJSON;
     collection.info.description =
@@ -320,7 +328,7 @@ async function createCollection() {
             .replace(/}/g, '');
           switch (opElement) {
             case 'requestBody': {
-              const schema = operation.content['application/json'].schema;
+              const schema = operation.content['application/json']?.schema || operation.content['multipart/form-data']?.schema;
               schemas.push({
                 path: `${endpointFullPath}/request`,
                 schema: getSchema(schema),
@@ -452,6 +460,10 @@ async function prepPostmanPublish() {
     globals.values.forEach(value => {
       if (value.key === 'postman-api-key') {
         value.value = keys.postman_api_key;
+      } else if (value.key === 'workspace_id') {
+        value.value = workspaceId;
+      } else if (value.key === 'workspace_name') {
+        value.value = workspaceName;  
       } else if (value.key === 'service_name') {
         value.value = `${serviceName}${gitLastMergeHashSuffix}`;
       } else if (value.key === 'service_collection') {
