@@ -2,12 +2,12 @@
 	"values": [
 		{
 			"key": "workspace_name",
-			"value": "restnest-postman",
+			"value": "<will be replaced automatically by openAPISetupPostman.js>",
 			"enabled": true
 		},
 		{
 			"key": "workspace_id",
-			"value": "52753734-b690-4c28-a07f-65685f04e52e",
+			"value": "<will be replaced automatically by openAPISetupPostman.js parameter>",
 			"enabled": true
 		},
 		{
