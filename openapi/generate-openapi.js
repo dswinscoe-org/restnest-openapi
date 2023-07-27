@@ -40,8 +40,7 @@ const dereference = process.argv.indexOf('-r') !== -1;
     const doc = yaml.load(readFileSync(outputFile));
 
     if (dereference && status === 0) {
-      // remove some components from the generated api spec that we don't want
-      // to publish to Apigee
+      // remove some unneeded components from the generated/dereferenced api spec
       if (doc.components) {
         if (doc.components.schemas) {
           delete doc.components.schemas;

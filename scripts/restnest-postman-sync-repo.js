@@ -1,6 +1,8 @@
 /**
- * DEV Setup: Prepares restnest-postman environments global variables for ./newman/restnest-postman-sync-*.js, e.g. apikey from gcp service, etc.
- * Newman ./newman/restnest-postman-sync-*.js scripts download all workspace collections and environments
+ * DEV Setup: Prepares restnest-postman environments global variables for ./newman/restnest-postman-sync-*.js,
+ *  REQUIRED: gcp_service_account_project, postman_api_key_admin from postman_apikey secret in gcp secret manager service
+ * On initial setup, ./newman/restnest-postman-prep-repo.js creates initial Postman Repo workspace, e.g. restnest-postman-domain (GCP dependent)
+ * Otherwise, ./newman/restnest-postman-sync-*.js scripts download all Postman Repo workspace collections and environments
  */
 const { resolve } = require('path');
 const fs = require('fs');
@@ -14,7 +16,7 @@ if (!(gitOrigin && gitFeature)) {
   console.error('Current repository does not have a remote origin and/or is not feature branch.');
   process.exit(1);
 }
-const gitOriginSplit = gitOrigin.replace('.git','').split('/');
+const gitOriginSplit = gitOrigin.replace('.git', '').split('/');
 const gitRepoName = gitOriginSplit[gitOriginSplit.length - 1];
 if (!gitRepoName.startsWith('restnest-openapi-')) {
   console.error(
@@ -33,21 +35,23 @@ if (!taskNr) {
 
 const environmentDir = resolve(__dirname, '../restnest-postman/environments');
 const globalsBasePath = resolve(environmentDir, 'restnest-postman.postman_globals.base.json');
-const globalsMainPath = resolve(
-  environmentDir,
-  'restnest-postman.postman_globals.main.json'
-);
+const globalsMainPath = resolve(environmentDir, 'restnest-postman.postman_globals.main.json');
 const globalsPath = resolve(environmentDir, 'restnest-postman.postman_globals.json');
 
 /**
- * Prepare globals with collection/environments from Postman RESTNEST E2E Test Workspace sync
- * NOTE: Gets postman api key for ./newman/restnest-postman-sync-prep.js - requires gcloud access to configured service account
+ * Prepares globals for collection/environments setup/lookup from Postman Repo (see WorkspaceSync collection, etc.)
+ * NOTE: Gets postman_apikey from GCP Secret Manager for ./newman/restnest-postman-sync-prep.js
+ * REQUIRES: gcloud login access to configured service account
+ *   gcp_service_account_project will be prompted if not already set in globals
  */
 async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr) {
+  let gcp_service_account_project = '';  
   let postman_api_key_developer = '';
   const isMain = taskNr === 'main';
+  const isDeveloper = !isMain;
   try {
-    if (!isMain) {
+    // Developer run - tasknr from feature branch detected above, e.g. feature/123456/this-branch
+    if (isDeveloper) {
       console.log(
         `\n ✅ -> Preparing for Postman Sync with git repo ${gitRepoName}, feature task ${taskNr} ...`
       );
@@ -60,8 +64,17 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
       try {
         isDevRunDetected = fs.statSync(globalsPath).isFile();
       } catch {}
+
+      // Previous developer run detected (prompted values reused)
       if (isDevRunDetected && !isMainRunDetected) {
         const globalsOld = JSON.parse(fs.readFileSync(globalsPath, { encoding: 'UTF8' }));
+        gcp_service_account_project = (
+          globalsOld.values.find(
+            global => global.key === 'gcp-service-account-project' && !global.value.startsWith('<')
+          ) || {
+            value: '',
+          }
+        ).value;        
         postman_api_key_developer = (
           globalsOld.values.find(
             global => global.key === 'postman-api-key-developer' && !global.value.startsWith('<')
@@ -69,9 +82,23 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
             value: '',
           }
         ).value;
+      // Previous main run detected - (ignore prev prompted values)
       } else if (isMainRunDetected) {
         fs.unlinkSync(globalsMainPath);
       }
+
+      // Prompt for gcp project id if not found
+      if (!gcp_service_account_project) {
+        console.log(
+          '\n ✅ -> GCP Service Account Project Id required  - see https://console.cloud.google.com/home/dashboard'
+        );
+        gcp_service_account_project = prompt('Please enter your GCP Project Id:');
+        if (!gcp_service_account_project) {
+          throw new Error('GCP Project Id is required');
+        } else {
+          fillGlobalBase(gcp_service_account_project);
+        }
+      }      
 
       // Prompt for api key if not found
       if (!postman_api_key_developer) {
@@ -84,8 +111,8 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
         }
       }
 
-      // If main, set marker to avoid reuse of admin key in developement
-    } else {
+    // Main run (test) - usually only main run in pipleine (set marker to avoid reuse of admin key in developer run)
+    } else if (isMain) {
       fs.copyFileSync(globalsBasePath, globalsMainPath);
     }
   } catch (err) {
@@ -99,29 +126,26 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
     fs.copyFileSync(globalsBasePath, globalsPath);
     const globals = require(globalsPath);
 
-    // Configure required projectId for GCP
-    const projectId = (
-      globals.values.find(global => global.key === 'gcp-service-account-project' && !global.value.startsWith('<') ) || { value: '' }
-    ).value;
-    if (!projectId) {
+    // Should have GCP project id by now
+    if (!gcp_service_account_project) {
       console.error(
-        `Expected GCP Project Id value to be set in globals gcp-service-account-project variable`,
+        `GCP Service Account Project Id still not configured`,
         err
       );
       process.exit(1);
-    }  
+    }
 
     // Get Postman ApiKey from configured GCP service account
     let postman_api_key_admin = '';
     try {
       const client = new SecretManagerServiceClient();
-      postman_api_key_admin = await accessSecretVersion(client, projectId, 'postman_apikey');
+      postman_api_key_admin = await accessSecretVersion(client, gcp_service_account_project, 'postman_apikey');
     } catch (err) {
       console.error(
-        `Error getting keys from secrets manager for GCP Service Account ${projectId}`,
+        `Error getting keys from secrets manager for GCP Service Account ${gcp_service_account_project}`,
         err
       );
-      fillGlobal(globals, postman_api_key_admin, postman_api_key_developer, gitRepoName, taskNr);
+      fillGlobal(globals, gcp_service_account_project, postman_api_key_admin, postman_api_key_developer, gitRepoName, taskNr);
       process.exit(1);
     }
 
@@ -131,7 +155,7 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
     }
 
     // Set & write globals
-    fillGlobal(globals, postman_api_key_admin, postman_api_key_developer, gitRepoName, taskNr);
+    fillGlobal(globals, gcp_service_account_project, postman_api_key_admin, postman_api_key_developer, gitRepoName, taskNr);
   } catch (err) {
     console.error('Error updating globals for synchronization/augmentation run:', err);
     process.exit(1);
@@ -151,11 +175,31 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
     return secretVersion?.payload?.data?.toString();
   }
 
+  // Write project id to to base (git persist)
+  function fillGlobalBase(gcp_service_account_project) {
+    const globalsBase = JSON.parse(fs.readFileSync(globalsBasePath, { encoding: 'UTF8' }));
+    globalsBase.values.forEach(global => {
+      if (global.key === 'gcp_service_account_project') {
+        global.value = gcp_service_account_project;
+      }
+    });
+    fs.writeFileSync(globalsBasePath, JSON.stringify(globalsBase, null, 2));
+  }
+
   // Set & write globals
-  function fillGlobal(globals, postman_api_key_admin, postman_api_key_developer, gitRepoName, taskNr) {
+  function fillGlobal(
+    globals,
+    gcp_service_account_project,
+    postman_api_key_admin,
+    postman_api_key_developer,
+    gitRepoName,
+    taskNr
+  ) {
     const isAdmin = postman_api_key_developer === postman_api_key_admin;
     globals.values.forEach(global => {
-      if (global.key === 'postman-api-key') {
+      if (global.key === 'gcp_service_account_project') {
+        global.value = gcp_service_account_project;
+      } else if (global.key === 'postman-api-key') {
         global.value = isAdmin ? postman_api_key_admin : postman_api_key_developer;
       } else if (global.key === 'postman-api-key-admin') {
         global.value = postman_api_key_admin;
@@ -169,7 +213,9 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
         const postmanRepoName = gitRepoName.replace('restnest-openapi-', 'restnest-postman-');
         const postmanRepoNameSplit = postmanRepoName.split('-');
         if (postmanRepoNameSplit.length !== 3) {
-          throw new Error('Postman Repo name does not conform to naming standard: restnest-openapi-domain');
+          throw new Error(
+            'Postman Repo name does not conform to naming standard: restnest-openapi-domain'
+          );
         } else if (global.value.startsWith('<')) {
           global.value = postmanRepoName;
         }
@@ -191,7 +237,9 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
       }
       const isOpenApiPrep = workspaceName.startsWith('<') || workspaceId.startsWith('<');
       if (isOpenApiPrep) {
-        console.log(`\n ✅ -> Prepared for Postman OpenApi workspace sync with new repo ${workspaceName}.\n`);
+        console.log(
+          `\n ✅ -> Prepared for Postman OpenApi workspace sync with new repo ${workspaceName}.\n`
+        );
       } else {
         console.log(`\n ✅ -> Prepared for sync from Postman repo workspace ${workspaceName}.\n`);
       }

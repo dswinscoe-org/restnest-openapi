@@ -5,13 +5,13 @@
   "version": "1.0.0",
   "description": "Simple template for Newman-based Postman API POST of OpenAPI artifacts as Postman collection/environments for use in Postman restnest-e2e workspace",
   "scripts": {
-    "prep": "yarn audit",
+    "restnest:generate-openapi": "cd ../ && node --max-old-space-size=4096 generate-openapi.js -r", 
     "restnest:openAPISetupPostman": "export GIT_LAST_MERGE_HASH=`git log --pretty=format:\"%ct-%h\"  --merges --first-parent -n 1`; cd scripts ; node --max-old-space-size=4096 openAPISetupPostman.js",
     "restnest:openAPISetupPostman:local:service": "yarn restnest:openAPISetupPostman --gcpAccount 'api-project-728156133227' --serviceName 'service' --openApiFolder '../../../openapi/' --noRefSpecFolder 'generated-specs' --noRefSpecName 'service.yaml' --serviceApiKeyLookupName 'e2e_service_apikey' --headerApiKeyName 'x-api-key'",
     "restnest:uploadCollection": "cd scripts/newman && node --max-old-space-size=4096 uploadCollection.js"
   },
   "// scripts explanation": {
-    "prep": "Renovate placeholder",
+    "restnest:generate-openapi": "Generate dereferenced openapi specs in ../config to ../generated-specs",
     "restnest:openAPISetupPostman": "Standard Postman collection generation setup - expects parameters, indicated in following local call (supplied in Pipeline queue time variables, see /pipeline)",
     "restnest:openAPISetupPostman:local": "Setup for local testing, e.g. : gcpAccount (google cloud project id), workspaceId (Postman workspace id), workspaceName (Postman workspace name), serviceName (domain Service name), openApiFolder (../../../openapi/), noRefSpecFolder (generated-specs), noRefSpecName (spec.yaml)",
     "restnest:uploadCollection": "Posts generated collection with Postman API running in Newman"
