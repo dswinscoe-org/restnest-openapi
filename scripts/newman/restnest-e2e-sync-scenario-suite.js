@@ -13,10 +13,13 @@ const repoCollectionPath = resolve(repoCollectionsPath, 'WorkspaceSync.postman_c
 
 const e2eCollectionsPath = resolve(__dirname, '../../restnest-e2e/collection/main');
 
-const environmentDir = resolve(__dirname, '../../restnest-e2e/environment');
-const globalsBasePath = resolve(environmentDir, 'restnest-e2e.postman_globals.base.json');
+const environmentsRepoPath = resolve(__dirname, '../../restnest-postman/environments');
+const environmentE2ePath = resolve(__dirname, '../../restnest-e2e/environment');
+const globalsBasePath = resolve(environmentE2ePath, 'restnest-e2e.postman_globals.base.json');
+const globalsRepoFilename = 'restnest-postman.postman_globals.json';
 const globalsFilename = 'restnest-e2e.postman_globals.json';
-const globalsPath = resolve(environmentDir, globalsFilename);
+const globalsPath = resolve(environmentE2ePath, globalsFilename);
+const globalsRepoPath = resolve(environmentsRepoPath, globalsRepoFilename);
 
 /**
  * Prepare globals with Postman APIKey for collection/environment local sync download
@@ -26,6 +29,9 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
   console.log(`\n ✅ -> Preparing for Postman Sync with globals ${globalsBasePath} ...`);
 
   try {
+    // On new install, update globals.base from repo
+    persistBaseGlobals();
+
     // Copy globals.base to globals
     fs.copyFileSync(globalsBasePath, globalsPath);
     const globals = require(globalsPath);
@@ -57,6 +63,39 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
       process.exit(1);
     }
     return secretVersion?.payload?.data?.toString();
+  }
+
+  // On fresh install, transfer from restnest-postman globals 
+  function persistBaseGlobals() {
+    const globalsBase = JSON.parse(fs.readFileSync(globalsBasePath, { encoding: 'UTF8' }));
+    const gcpProjectId = globalsBase.values.find(
+      variable => variable.key === 'gcp-service-account-project' && !variable.value.startsWith('<')
+    )?.value;
+    if (!gcpProjectId) {
+      const globalsRepo = JSON.parse(fs.readFileSync(globalsRepoPath, { encoding: 'UTF8' }));
+      const repoProjectId = globalsRepo.values.find(
+        variable => variable.key === 'gcp-service-account-project' && !variable.value.startsWith('<')
+      )?.value;
+      const repoWorkspaceSyncId = globalsRepo.values.find(
+        variable => variable.key === 'repo_workspacesync_collection_id' && !variable.value.startsWith('<')
+      )?.value; 
+      const e2eWorkspaceId = globalsRepo.values.find(
+        variable => variable.key === 'e2e_workspace_id' && !variable.value.startsWith('<')
+      )?.value;
+      const e2eWorkspaceName = globalsRepo.values.find(
+        variable => variable.key === 'e2e_workspace_name' && !variable.value.startsWith('<')
+      )?.value;
+      if (!repoProjectId || !repoWorkspaceSyncId || !e2eWorkspaceId || !e2eWorkspaceName) {
+        throw new Error(
+          'Global variables for repo workspace are missing - globals from local repo setup were expected'
+        );
+      }
+      globalsBase.values.find(variable => variable.key === 'gcp-service-account-project').value = repoProjectId;
+      globalsBase.values.find(variable => variable.key === 'repo_workspacesync_collection_id').value = repoWorkspaceSyncId;
+      globalsBase.values.find(variable => variable.key === 'e2e_workspace_id').value = e2eWorkspaceId;
+      globalsBase.values.find(variable => variable.key === 'e2e_workspace_name').value = e2eWorkspaceName;
+      fs.writeFileSync(globalsBasePath, JSON.stringify(globalsBase, null, 2));      
+    }
   }
 
   function fillGlobal(globals, postman_api_key) {
@@ -129,7 +168,7 @@ async function postmanE2EMainSync() {
     ).value;
     environments.forEach(env => {
       const e2eEnvironmentFilePath = resolve(
-        environmentDir,
+        environmentE2ePath,
         `${env.name}.postman_environment.json`
       );
       const e2eEnvironment = { name: env.name, values: env.values };
@@ -141,7 +180,7 @@ async function postmanE2EMainSync() {
 
 async function main() {
   await prepPostmanSync(globalsBasePath, globalsPath);
-  await runWorkspaceSyncLoader(environmentDir, globalsFilename);
+  await runWorkspaceSyncLoader(environmentE2ePath, globalsFilename);
   await postmanE2EMainSync();
   console.log('\n ✅ -> E2E workspace main workspace synched completed.\n');
 }

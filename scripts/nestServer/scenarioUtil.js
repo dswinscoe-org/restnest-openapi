@@ -226,27 +226,20 @@ function safeRequire(filepath) {
   }
 }
 
-// Determine collection: main or developer
+// Determine collection: assume developer if not main 
 function determineCurrentCollections(currentCollection, currentSeviceCollection, requestId) {
-  // Determine current collection used with current workstep_id (unique to collection)
+  // Determine if current collection used with current workstep_id (unique to collection)
   if (!currentCollection) {
-    [dev_collection, main_collection].forEach((collection, index) => {
-      if (!currentCollection && findRequestById(collection.item, requestId).length > 0) {
-        currentCollection = collection;
-        currentServiceCollection = [dev__service_collection, main_service_collection][index];
-        console.log(
-          '\n\n\x1b[32m%s\x1b[0m',
-          `*** ScenarioServer sourcing restnest-e2e/collection/${
-            collection === main_collection ? 'main' : 'developer'
-          }/restnest-e2e.postman_collection.json ***`
-        );
-      }
-    });
-    if (!currentCollection) {
-      throw new Error(
-        'Could not determine if collection is main or developer: trigger syncCollections and retry'
-      );
-    }
+    const isServerRestarted = !requestId;
+    const isMainCollection = !isServerRestarted && findRequestById(main_collection.item, requestId).length > 0;
+    currentCollection = isMainCollection ? main_collection : dev_collection;
+    currentServiceCollection = isMainCollection ? main_service_collection : dev__service_collection;
+    console.log(
+      '\n\n\x1b[32m%s\x1b[0m',
+      `*** ScenarioServer sourcing restnest-e2e/collection/${
+        currentCollection === main_collection ? 'main' : 'developer'
+      }/restnest-e2e.postman_collection.json ***`
+    );
   }
   return {currentCollection: currentCollection, currentServiceCollection: currentServiceCollection};
 
