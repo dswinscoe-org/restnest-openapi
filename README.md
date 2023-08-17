@@ -1,51 +1,46 @@
-# RESTNEST-openapi
+# RESTful Newman Entity Scenario Tester - OpenAPI 
 
-If you're looking for a Postman Collection Runner alternative, to easily develop and maintain complex, multi-service, E2E user journey tests or FE test data setup and teardown, then you've come to the right place.   
+*`If you're looking for a Postman Collection Runner alternative, to easily develop and maintain complex, E2E user journey tests or FE test data setup and teardown, for unlimited OpenAPI services, then you've come to the right place.`*
 
-The RESTful Newman Entity Sceanrio Tester for OpenAPI (RESTNEST-openapi) is a data-driven Javascript framework for generating and transforming OpenAPI 3 Specs to JSON Schema and Postman collections for use in complex automated E2E testing sceanrios that run in Postman Runner and Newman, as well as build pipelines. Designed to be easily integrated with any OpenAPI-defined microservice, the framework relies on code generation to reduce the overhead and cost of maintaining E2E tests, which are highly dependent on the contracts defined in OpenAPI. As such, all changes in OpenAPI translate to changes in the underlying generated artifacts, which transparantly indicate breaking changes, making maintenance of existing tests much more manageable.
+Leverages Postman’s powerful SCM and API test capabilities with a unique, data-driven, Node.js-powered approach to generate and transform OpenAPI3 Specs to JSON Schema and Postman artifacts, for use in complex automated E2E testing scenarios that run in Postman Runner and Newman, as well as build pipelines.
 
-## Instrumentation
+Both this git "infrastructure" repo and the public Postman Workspace, [restnest-openapi](https://restnest-openapi.postman.co/workspace/restnest-openapi~f84b6021-ed78-4245-b4ce-fbbba11013c9/overview), which relies on the [Postman API](https://www.postman.com/postman/workspace/postman-public-workspace/collection/12959542-c8142d51-e97c-46b6-bd77-52bb66712c9a), are required to create and manage a Postman "RESTNEST Instance" of workspaces, collections with JSON Schema variables, and environments for all configured stages, i.e. DEV, STAGING, PROD, etc. 
 
-With this data-driven design, the RESTNEST framework provides all the necessary configuration, via Javascript and JSON generation and transformation, for the integration of industry standard API, REST and build tools, to enable creation, and low-cost maintenance of E2E tests of business workflows:   
+Designed to easily integrate any number of OpenAPI-defined microservice, this systematic approach significantly reduces the overhead and cost of maintaining E2E tests, which are highly dependent on the contracts defined in OpenAPI. As such, all changes in OpenAPI translate to automatic changes in the underlying generated artifacts, which transparently indicate breaking changes, making maintenance of existing tests much more manageable.
 
-* Postman - API platform for building and using APIs
-    * Collection Runner 
-    * Workflow and Chai testing
-* Node.js - Javascript runtime for 
-    * Express.js - local server, for mocking and coordination
-    * Newman - command-line collection runner for Postman 
-    * Grunt - JavaScript Task Runner
+## Postman Workflow enhancements
 
-## Generation Process
+Each integrated OpenAPI services’ requests are automatically generated, augmented in Postman collections, and forked to developer workspaces. Simply by copying and pasting these pre-generated service requests consecutively into scenario folders, the underlying Postman infrastructure handles test states and request flow, greatly simplifying development overhead, and enabling the “out-of-the-box” automation of complex scenario workflows in Postman and Newman, with shared environment variables and full retry, wait and skip request support. RESTNEST Triggers extend this to support suites of scenarios, which can be run consecutively and/or simultaneously locally and in pipelines.   
 
-Javascript generation scripts, which automatically produce the raw JSON Schema and Postman artifacts, are run during microservice development. These artifacts are further refined in RESTNEST to produce easily-imported Postman Collection and Environments and related Software Control-manageable artifacts that are leveraged in creating JSON-based E2E Testing Sceanrios:
+## Node.js Project Instrumentation
 
-```OpenAPI -> Javscript Generator -> collections/environments uploaded to restnest-postman workspace ->```
+As can be seen in the extensively documented `package.json`, RESTNEST relies on a number of npm packages, but the following are of fundamental importance:
 
-```-> yarn restnest:start -> dev workspace (restnest-e2e-taskNr) generated for development -> Postman PR merged ->```
+* [Express.js]() - local server, for mocking and coordination
+* [Newman]() - command-line collection runner for Postman 
+* [Grunt]() - JavaScript Task Runner
 
-```-> restnest-e2e main workspace downloaded via Postman API and used for Newman / Grunt-based build pipelines -> reporting```
 
-Because of the nature the data-driven design, most artifacts are generated (e.g, collections, etc.), so RESTNEST Testers can concenrate solely on creating scenarios **exclusively** in Postman with simple copy & paste, workflow configuration.
-
-## RESTNEST support folder structure
-
-### Repo
-* **openapi** - Publish OpenAPI Spec transormed cvollections with Postman API
-* **pipelines** - YAML for Newman scenario test piplines 
+## Repo Folders
+* **openapi** - Publish OpenAPI Spec transformed collections with Postman API. The `postman` subdirectory is also a template that can be copied to REST service repos for inclusion in CI/CD
+* **pipelines** - YAML for Newman scenario test pipelines 
 * **restnest-e2e** - Auto-generated e2e test scenario collections and environments - auto-upload to Postman workspace 
-* **restnest-postman** - Downloaded auto-generated service Postman collections and environments from Postman Workspace restnest-postman
+* **restnest-postman** - Downloaded auto-generated service Postman collections and environments from Postman Workspace restnest-postman-*
 * **scripts** - Framework scripts for setup and background Express mock server as well as Newman
+    * `newman` - all Newman support scripts and generated HTML `reports`
+    * `nestServer` - Scenario Server support scripts and `triggers` target folder for triggered files
 * **Gruntfile.js** - Tasks configured to setup and run workflow suites in Newman and build pipelines
 
-## Testing Setup
+## RESTNEST Instance Setup
 
-To create a personal repo, simply clone this feature branch and enter following commands:
+To get started, just fork the [restnest-openapi](https://github.com/dswinscoe-org/restnest-openapi) repo, clone a feature branch locally and run a single script. Some initial cloud service setup is also required, e.g. Google Cloud Platform Secret Manager for secret storage. The install script will require a GCP ProjectId to continue.
 
-* Create a feature branch of this repo and clone to IDE
+After the initial creation of the RESTNEST instance, developers can work independently on domain scenarios by repeating the process:
+
+* Create a feature branch of the RESTNEST domain fork and clone to IDE
 * Run ```yarn restnest:start```
    * at the prompt, enter your Postman API Key
 
-The above scripts use the branch name to identify the DevOps task number of the feature branch, so it is expected that feature branches follow the accepted format, e.g. feature/123456-this-is-my-branch.
+The above scripts use the branch name to identify the "task number" of the feature branch, so it is expected that feature branches follow the accepted format, e.g. feature/NNNNN/this-is-my-branch.
 
-The personal devlopmenet workspace, which carries the main workspace name + task nr (e.g. restnest-e2e-123456), should have been forked from the main. All scenario development is done in personal workspaces, which are merged per Postman PR to the main workspace.  
+The `developer` workspace, which carries the `main` workspace name + task nr (e.g. restnest-e2e-domain-123456), has been forked from the main workspace. All scenario development is done in `developer` workspaces and are merged per Postman PR to the `main` workspace.  
