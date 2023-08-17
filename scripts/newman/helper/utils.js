@@ -127,7 +127,7 @@ exports.rewriteJUnitFile = function rewriteJUnitFile(reportFilePath) {
         value._attributes.tests = `${Math.floor(parseInt(value._attributes.tests) / 2)}`;
         iterateReport(value);
       } else if (key === 'testsuite') {
-        const suites = value;
+        const suites = Array.isArray(value) ? value : [value];
         // Iterate testsuites and cleanup noise
         suites.forEach(suite => {
           delete suite.properties;
