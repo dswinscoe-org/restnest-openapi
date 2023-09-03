@@ -55,7 +55,8 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
       console.log(
         `\n ✅ -> Preparing for Postman Sync with git repo ${gitRepoName}, feature task ${taskNr} ...`
       );
-      // Try first to get it from globals from previous run (require new prompt after main run)
+
+      // Check globals state - set values from previous run, unless main, then re-prompt
       let isMainRunDetected = false;
       let isDevRunDetected = false;
       try {
@@ -64,17 +65,8 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
       try {
         isDevRunDetected = fs.statSync(globalsPath).isFile();
       } catch {}
-
-      // Previous developer run detected (prompted values reused)
       if (isDevRunDetected && !isMainRunDetected) {
         const globalsOld = JSON.parse(fs.readFileSync(globalsPath, { encoding: 'UTF8' }));
-        gcp_service_account_project = (
-          globalsOld.values.find(
-            global => global.key === 'gcp-service-account-project' && !global.value.startsWith('<')
-          ) || {
-            value: '',
-          }
-        ).value;        
         postman_api_key_developer = (
           globalsOld.values.find(
             global => global.key === 'postman-api-key-developer' && !global.value.startsWith('<')
@@ -82,12 +74,19 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
             value: '',
           }
         ).value;
-      // Previous main run detected - (ignore prev prompted values)
       } else if (isMainRunDetected) {
         fs.unlinkSync(globalsMainPath);
       }
 
       // Prompt for gcp project id if not found
+      const globalsBase = JSON.parse(fs.readFileSync(globalsBasePath, { encoding: 'UTF8' }));
+      gcp_service_account_project = (
+        globalsBase.values.find(
+          global => global.key === 'gcp-service-account-project' && !global.value.startsWith('<')
+        ) || {
+          value: '',
+        }
+      ).value;      
       if (!gcp_service_account_project) {
         console.log(
           '\n ✅ -> GCP Service Account Project Id required  - see https://console.cloud.google.com/home/dashboard'

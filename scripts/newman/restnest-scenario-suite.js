@@ -151,12 +151,12 @@ async function runScenario(scenario) {
     // Rewrite XUnit file
     rewriteJUnitFile(reportsPathXML);
     // Persist summary globals / environment
-    persistEnvironment(newmanEnvironmentPath, environmentsE2EScenarioPath, summary);
+    persistEnvironment(newmanEnvironmentPath, environmentsE2EScenarioPath, summary, scenario);
     persistGlobals(newmanGlobalsPath, summary);
 
     console.log('\nScenario complete: ', JSON.stringify(scenario, null, 2));
   } catch (error) {
-    console.error(error);
+    console.error('\nScenario error encountered: ', error);
   }
 
   // helpers
@@ -175,14 +175,56 @@ async function runScenario(scenario) {
       fs.writeFileSync(newmanGlobalsPath, JSON.stringify(globals, null, 2));
     }
   }
-  function persistEnvironment(newmanEnvironmentPath, environmentsE2EScenarioPath, summary) {
+  function persistEnvironment(
+    newmanEnvironmentPath,
+    environmentsE2EScenarioPath,
+    summary,
+    scenario
+  ) {
     if (summary.environment) {
       const env = JSON.parse(fs.readFileSync(newmanEnvironmentPath, { encoding: 'UTF8' }));
       syncArraysOfKeyValueObject(summary.environment.values, env.values);
       fs.writeFileSync(newmanEnvironmentPath, JSON.stringify(env, null, 2));
       // Change environment name to include folder id, and write back to restnest-e2e/environment
-      env.name = path.basename(environmentsE2EScenarioPath, '.json').split('.').slice(0, -1).join('.');
+      env.name = path
+        .basename(environmentsE2EScenarioPath, '.json')
+        .split('.')
+        .slice(0, -1)
+        .join('.');
       fs.writeFileSync(environmentsE2EScenarioPath, JSON.stringify(env, null, 2));
+      // Write declared scenario environment variables to their folders, if enabled
+      try {
+        peristEnvironmentVariablesLocally(env, scenario.scenarioWriteFolder);
+      } catch (error) {
+        console.error(
+          `\nScenario environment write failed on ${scenario.scenarioWriteFolder}: `,
+          error
+        );
+      }
+    }
+  }
+  /**
+   * Save environment array of object value to folder file
+   * scenarioWriteFolder, array/list - alternating folder, environment var name
+   * environment var value, array of object - alternating filename, content object
+   * - folder is relative to project root
+   */
+  function peristEnvironmentVariablesLocally(env, scenarioWriteFolder) {
+    if (scenarioWriteFolder) {
+      const folderParams = scenarioWriteFolder.split(',');
+      const folders = folderParams.filter((param, index) => (index + 1) % 2 === 1);
+      const envKeys = folderParams.filter((param, index) => (index + 1) % 2 === 0);
+      folders.forEach((folder, index) => {
+        if (envKeys && index < envKeys.length && envKeys[index]) {
+          const envValue = env.values.find(value => value.key === envKeys[index].trim())?.value || [];
+          envValue.forEach(value => {
+            const filename = value.name;
+            const content = value.content.join('\n');
+            const targetFolderPath = path.join(__dirname, '../../', folder, filename);
+            fs.writeFileSync(targetFolderPath, content);
+          });
+        }
+      });
     }
   }
   // return usages in megabytes(MB)
