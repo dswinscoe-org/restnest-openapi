@@ -178,7 +178,7 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
   function fillGlobalBase(gcp_service_account_project) {
     const globalsBase = JSON.parse(fs.readFileSync(globalsBasePath, { encoding: 'UTF8' }));
     globalsBase.values.forEach(global => {
-      if (global.key === 'gcp_service_account_project') {
+      if (global.key === 'gcp-service-account-project') {
         global.value = gcp_service_account_project;
       }
     });
@@ -196,7 +196,7 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
   ) {
     const isAdmin = postman_api_key_developer === postman_api_key_admin;
     globals.values.forEach(global => {
-      if (global.key === 'gcp_service_account_project') {
+      if (global.key === 'gcp-service-account-project') {
         global.value = gcp_service_account_project;
       } else if (global.key === 'postman-api-key') {
         global.value = isAdmin ? postman_api_key_admin : postman_api_key_developer;
