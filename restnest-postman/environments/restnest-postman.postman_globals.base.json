@@ -1,14 +1,13 @@
 {
   "values": [
     {
-      "key": "gcp-service-account-project",
-      "value": "<must be manually configured - set to GCP Service Account Project Id, e.g. api-project-728156133227>",
-      "type": "default",
+      "key": "cloud-secrets-id",
+      "value": "<cloud secrets project id, GCP, etc., will be replaced automatically by scripts/restnest-postman-sync-repo.js - requires cloud setup and auth login>",
       "enabled": true
     },
     {
       "key": "postman-api-key",
-      "value": "<admin apikey will be replaced automatically by scripts/restnest-postman-sync-repo.js - requires gcloud auth login>",
+      "value": "<admin apikey will be replaced automatically by scripts/restnest-postman-sync-repo.js>",
       "type": "secret",
       "enabled": true
     },

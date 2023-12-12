@@ -27,12 +27,14 @@ module.exports.workflowMeta = async function (startTimestamp, req, res, next) {
     // Lookup Postman collection for Postman globals workstep metadata variables
     try {
       postmanVars.globals = [...postmanVars.globals, ...syncWorkstepMetaGlobals(req.query)];
+      res.json(postmanVars);
     } catch (err) {
       err.statusCode = 404;
       next(err);
     }
+  } else {
+    res.json(postmanVars);
   }
-  res.json(postmanVars);
 };
 
 /**

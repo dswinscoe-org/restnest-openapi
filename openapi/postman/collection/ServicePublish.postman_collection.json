@@ -1,10 +1,11 @@
 {
 	"info": {
-		"_postman_id": "dc6ae38b-2326-411a-ac5e-9fbfac20984b",
+		"_postman_id": "f8232c12-810f-46e4-b968-e281831b8459",
 		"name": "ServicePublish",
-		"description": "Collection to publish service auto-generated collections\n\n\n# Overview\n\nSee Postman API Collection for complete fork",
+		"description": "# Open-API Service Publish\n\nCollection to publish OpenAPI service, auto-generated postman collections and environments.\n\nOpenAPI Schemas are added to the collection variables and environments (PR1, DEV, SANDBOX, STAGING, PROD) are created according to the servers configuration in OpenAPI.\n\n**NOTE**: Unlike WokspaceSync, this collection is checked into the respective service repo, to reduce overhead during pipeline runs.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "17866049"
+		"_exporter_id": "183263",
+		"_collection_link": "https://restnest-openapi.postman.co/workspace/restnest-postman-aime~22138d43-24e5-4e63-9428-acc5006a1115/collection/183263-f8232c12-810f-46e4-b968-e281831b8459?action=share&source=collection_link&creator=183263"
 	},
 	"item": [
 		{
@@ -483,7 +484,6 @@
 					"    helpers.cleanupGlobals = () => {",
 					"        // From environment globals import",
 					"        const keeplist = {",
-					"            'gcp-service-account-project': true,",
 					"            'service_name': true,",
 					"            'service_name_short': true,",
 					"            'workspace_name': true,",

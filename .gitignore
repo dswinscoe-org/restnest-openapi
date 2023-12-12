@@ -1,12 +1,17 @@
 .DS_Store
 node_modules
 yarn-error.log
+openapi/postman/**/*.json
+!openapi/postman/collection/ServicePublish.postman_collection.json
+!openapi/postman/environment/restnest-postman.postman_globals.base.json
+!openapi/postman/environment/restnest-secrets.postman_globals.base.json
 restnest-e2e/**/*.json
 !restnest-e2e/environment/restnest-e2e.postman_globals.base.json
 !restnest-e2e/environment/restnest-e2e.postman_environment.json
 restnest-postman/**/*.json
 !restnest-postman/collections/WorkspaceSyncLoader.postman_collection.json
 !restnest-postman/environments/restnest-postman.postman_globals.base.json
+!restnest-postman/environments/restnest-secrets.postman_globals.base.json
 scripts/newman/environment/*.json
 scripts/newman/reports
 scripts/nestServer/triggers/*.json
