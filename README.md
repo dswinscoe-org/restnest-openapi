@@ -33,7 +33,7 @@ As can be seen in the extensively documented `package.json`, RESTNEST relies on 
 
 ## RESTNEST Instance Setup
 
-To get started, just fork the [restnest-openapi](https://github.com/dswinscoe-org/restnest-openapi) repo, clone a feature branch locally and run a single script. Some initial cloud service setup is also required, e.g. Google Cloud Platform Secret Manager for secret storage. The install script will require a GCP ProjectId to continue.
+To get started, just fork the [restnest-openapi](https://github.com/dswinscoe-org/restnest-openapi) repo, clone a feature branch locally and run a single script. 
 
 After the initial creation of the RESTNEST instance, developers can work independently on domain scenarios by repeating the process:
 
