@@ -9,7 +9,7 @@
     "restnest:generate-openapi": "cd ../ && node --max-old-space-size=4096 generate-openapi.js -r",
     "restnest:openAPISetupPostman": "export GIT_LAST_MERGE_HASH=`git log --pretty=format:\"%ct-%h\"  --merges --first-parent -n 1`; cd scripts ; node --max-old-space-size=4096 openAPISetupPostman.js",
     "restnest:openAPISetupPostman:local": "yarn restnest:openAPISetupPostman:local:service",
-    "restnest:openAPISetupPostman:local:service": "yarn restnest:openAPISetupPostman --gcpAccount 'api-project-id' --serviceName 'service' --openApiFolder '../../../openapi/' --noRefSpecFolder 'generated-specs' --noRefSpecName 'service.yaml' --serviceApiKeyLookupName 'e2e_service_apikey' --headerApiKeyName 'x-api-key'",
+    "restnest:openAPISetupPostman:local:service": "yarn restnest:openAPISetupPostman --cloudSecretsId 'api-project-id' --workspaceId 'targetWorkspaceId' --workspaceName 'targetWorkspaceName' --serviceName 'service' --openApiFolder '../../../openapi/' --noRefSpecFolder 'generated-specs' --noRefSpecName 'service.yaml' --serviceApiKeyLookupName 'e2e_service_apikey' --headerApiKeyName 'x-api-key'",
     "restnest:uploadCollection": "cd scripts/newman && node --max-old-space-size=4096 uploadCollection.js"
   },
   "// scripts explanation": {
