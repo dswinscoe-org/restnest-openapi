@@ -13,5 +13,6 @@ restnest-postman/**/*.json
 !restnest-postman/environments/restnest-postman.postman_globals.base.json
 !restnest-postman/environments/restnest-secrets.postman_globals.base.json
 scripts/newman/environment/*.json
-scripts/newman/reports
+scripts/newman/reports/*.*
+!scripts/newman/reports/README.md
 scripts/nestServer/triggers/*.json
