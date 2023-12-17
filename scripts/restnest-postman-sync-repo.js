@@ -8,45 +8,35 @@ const { resolve } = require('path');
 const fs = require('fs');
 const prompt = require('prompt-sync')();
 const { getGCPSecret } = require('../openapi/postman/scripts/gcp/postmanApiKeyCheck');
-const { getAllLocalSecrets, getLocalSecret, writeLocalSecret } = require('../openapi/postman/scripts/local/secrets');
+const {
+  getAllLocalSecrets,
+  getLocalSecret,
+  writeLocalSecret,
+} = require('../openapi/postman/scripts/local/secrets');
+const util = require('node:util');
+const exec = util.promisify(require('node:child_process').exec);
+const { program } = require('commander');
 
-const gitOrigin = process.env.GIT_ORIGIN || '';
-const gitFeature = process.env.GIT_FEATURE || '';
-const cloudSecretsId = process.env.CLOUD_SECRETS_ID || '';
-// Check Repo for pre-requisites and fail if not met
-if (!(gitOrigin && gitFeature)) {
-  console.error('Current repository does not have a remote origin and/or is not feature branch.');
-  process.exit(1);
-}
-const gitOriginSplit = gitOrigin.replace('.git', '').split('/');
-const gitRepoName = gitOriginSplit[gitOriginSplit.length - 1];
-if (!gitRepoName.startsWith('restnest-openapi-')) {
-  console.error(
-    `GIT_ORIGIN repo name ${gitRepoName} does not conform - expected forked restnest-openapi-[domainName]`
-  );
-  process.exit(1);
-}
-const taskNrSplit = gitFeature.replace('-', '/').split('/');
-const taskNr =
-  taskNrSplit.length > 1
-    ? Number.isNaN(parseInt(taskNrSplit[0]))
-      ? Number.isNaN(parseInt(taskNrSplit[1]))
-        ? ''
-        : taskNrSplit[1]
-      : taskNrSplit[0]
-    : '';
-if (!taskNr) {
-  console.error(
-    `GIT_FEATURE env variable value ${gitFeature} unexpected  - expected, e.g. 123456/this-branch, bla/123456/this-branch or refresh/main.`
-  );
-  process.exit(1);
-}
+// Check for program parameters
+program
+  .option(
+    '-c, --cloudSecretId <cloudSecretId>',
+    'Cloud Key Secret Manager, GCP Project Id, Azure KeyVault'
+  )
+  .option(
+    '-g, --gitFeatureOverride <gitFeatureOverride>',
+    'Git Origin, e.g. 123456/bla-bla, refresh/main'
+  )
+  .parse(process.argv);
+const options = program.opts();
+const cloudSecretsId = options.cloudSecretId || '';
+const gitFeatureOverride = options.gitFeatureOverride || '';
 
+// Prep globals/secerts for upcoming Newman collection runs 
 const environmentDir = resolve(__dirname, '../restnest-postman/environments');
 const globalsBasePath = resolve(environmentDir, 'restnest-postman.postman_globals.base.json');
 const globalsMainPath = resolve(environmentDir, 'restnest-postman.postman_globals.main.json');
 const globalsPath = resolve(environmentDir, 'restnest-postman.postman_globals.json');
-
 const globalsSecretsBasePath = resolve(
   environmentDir,
   'restnest-secrets.postman_globals.base.json'
@@ -60,7 +50,7 @@ const globalsSecretsPath = resolve(environmentDir, 'restnest-secrets.postman_glo
  *  - set isUsingCloudForSecrets to true to activate Google Cloud Secret Lookup
  */
 async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr) {
-  const isUsingCloudForSecrets = false; // Change according to need / 
+  const isUsingCloudForSecrets = false; // Change according to need /
 
   // Get Postman Api Key for developer - prompt if required
   let postman_api_key_developer = '';
@@ -125,12 +115,21 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
     let globalSecrets;
     let postman_api_key_admin = '';
     try {
-      globalSecrets = getAllLocalSecrets(globalsSecretsBasePath, globalsSecretsPath, isUsingCloudForSecrets);
+      globalSecrets = getAllLocalSecrets(
+        globalsSecretsBasePath,
+        globalsSecretsPath,
+        isUsingCloudForSecrets
+      );
       // Lookup secret in cloud and save locally
       if (isUsingCloudForSecrets) {
         postman_api_key_admin = await getGCPSecret('postman_apikey', cloudSecretsId);
-        writeLocalSecret(globalsSecretsPath, globalSecrets, 'postman-api-key-admin-local', postman_api_key_admin);
-      // Get locally-managed secret for LOCAL USE ONLY
+        writeLocalSecret(
+          globalsSecretsPath,
+          globalSecrets,
+          'postman-api-key-admin-local',
+          postman_api_key_admin
+        );
+        // Get locally-managed secret for LOCAL USE ONLY
       } else {
         postman_api_key_admin = getLocalSecret(globalSecrets, 'postman-api-key-admin-local');
       }
@@ -217,6 +216,53 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
 }
 
 async function main() {
+  const gitOrigin = await getGitOrigin();
+  const gitFeature = gitFeatureOverride ? gitFeatureOverride : await getGitFeature();
+
+  // Check Repo for pre-requisites and fail if not met
+  if (!(gitOrigin && gitFeature)) {
+    console.error('Current repository does not have a remote origin and/or is not feature branch.');
+    process.exit(1);
+  }
+  const gitOriginSplit = gitOrigin.replace('.git', '').split('/');
+  const gitRepoName = gitOriginSplit[gitOriginSplit.length - 1];
+  if (!gitRepoName.startsWith('restnest-openapi-')) {
+    console.error(
+      `GIT_ORIGIN repo name ${gitRepoName} does not conform - expected forked restnest-openapi-[domainName]`
+    );
+    process.exit(1);
+  }
+  const taskNrSplit = gitFeature.replace('-', '/').split('/');
+  const taskNr =
+    taskNrSplit.length > 1
+      ? Number.isNaN(parseInt(taskNrSplit[0]))
+        ? Number.isNaN(parseInt(taskNrSplit[1]))
+          ? ''
+          : taskNrSplit[1]
+        : taskNrSplit[0]
+      : '';
+  if (!taskNr) {
+    console.error(
+      `GIT_FEATURE env variable value ${gitFeature} unexpected  - expected, e.g. 123456/this-branch, bla/123456/this-branch or refresh/main.`
+    );
+    process.exit(1);
+  }
+
   prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr);
+
+  // helpers
+  async function getGitOrigin() {
+    return await execString('git config --get remote.origin.url');
+  }
+  async function getGitFeature() {
+    return await execString('git symbolic-ref --short HEAD');
+  }
+  async function execString(cmd) {
+    const { stdout, stderr } = await exec(cmd);
+    if (stderr) {
+      console.error('stderr:', stderr);
+    }
+    return stdout?.replace(/\r?\n|\r/, '');
+  }
 }
 main();
