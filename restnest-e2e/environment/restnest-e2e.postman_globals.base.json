@@ -1,14 +1,13 @@
 {
   "values": [
     {
-      "key": "gcp-service-account-project",
-      "value": "<will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js>",
-      "type": "default",
+      "key": "cloud-secrets-id",
+      "value": "<cloud secrets project id, GCP, etc., will be replaced automatically by cripts/newman/restnest-e2e-sync-scenario-suite.js - requires cloud setup and auth login>",
       "enabled": true
     },
     {
       "key": "postman-api-key",
-      "value": "<admin apikey will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js - requires gcloud auth login>",
+      "value": "<admin apikey will be replaced automatically by scripts/newman/restnest-e2e-sync-scenario-suite.js>",
       "type": "secret",
       "enabled": true
     },

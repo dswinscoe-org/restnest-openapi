@@ -4,8 +4,9 @@ const { resolve } = require('path');
 const fs = require('fs');
 const yaml = require('js-yaml');
 const toJsonSchema = require('@openapi-contrib/openapi-schema-to-json-schema');
-const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const { program } = require('commander');
+const { getGCPSecret } = require('./gcp/postmanApiKeyCheck');
+const { getAllLocalSecrets, getLocalSecret, writeLocalSecret } = require('./local/secrets');
 
 /**
  * Service Repo-dependent configuration
@@ -13,10 +14,13 @@ const { program } = require('commander');
  * - see openapi/generate-openapi.js for no-reference spec generation
  */
 program
-  .option('--gcpAccount <value>', 'Google Cloud account')
-  .option('--workspaceId <value>', 'Repo Workspace Id')
-  .option('--workspaceName <value>', 'Repo Workspace Name')  
-  .option('--serviceName <value>', 'Repo Service Name')
+  .option(
+    '--cloudSecretsId <value>',
+    'Cloud Seceret Manager ID, GCP Project Id, Azure Key Vault Name, etc. '
+  )
+  .option('--workspaceId <value>', 'Postman Repo Workspace Id')
+  .option('--workspaceName <value>', 'Postman Repo Workspace Name')
+  .option('--serviceName <value>', 'Postman Repo Service Name')
   .option('--openApiFolder <value>', 'OpenAPI folder relative to this file')
   .option('--noRefSpecFolder <value>', 'No-Reference Spec Folder')
   .option('--noRefSpecName <value>', 'No-Reference Spec Filename')
@@ -39,7 +43,7 @@ program
   .parse(process.argv);
 
 const {
-  gcpAccount,
+  cloudSecretsId,
   globalNoRefSpecPath,
   workspaceId,
   workspaceName,
@@ -57,8 +61,16 @@ const gitLastMergeHash = process.env.GIT_LAST_MERGE_HASH || '';
 const gitLastMergeHashSuffix = gitLastMergeHash ? `-${gitLastMergeHash}` : `-${Date.now()}-0`;
 const collectionDir = resolve(__dirname, '../collection');
 const environmentDir = resolve(__dirname, '../environment');
+
 const globalsBasePath = resolve(environmentDir, 'restnest-postman.postman_globals.base.json');
 const globalsPath = resolve(environmentDir, 'restnest-postman.postman_globals.json');
+
+const globalsSecretsBasePath = resolve(
+  environmentDir,
+  'restnest-secrets.postman_globals.base.json'
+);
+const globalsSecretsPath = resolve(environmentDir, 'restnest-secrets.postman_globals.json');
+
 const collectionFile = resolve(
   collectionDir,
   `${serviceName}${gitLastMergeHashSuffix}.postman_collection.json`
@@ -71,7 +83,7 @@ const collectionFile = resolve(
 function prepServiceConfiguration(options) {
   if (
     !(
-      options.gcpAccount &&
+      options.cloudSecretsId &&
       options.workspaceId &&
       options.workspaceName &&
       options.serviceName &&
@@ -87,7 +99,7 @@ function prepServiceConfiguration(options) {
   const globalNoRefSpecFolder = resolve(openApiFolder, options.noRefSpecFolder);
   const globalNoRefSpecPath = resolve(globalNoRefSpecFolder, options.noRefSpecName);
   return {
-    gcpAccount: options.gcpAccount,
+    cloudSecretsId: options.cloudSecretsId,
     globalNoRefSpecPath: globalNoRefSpecPath,
     workspaceId: options.workspaceId,
     workspaceName: options.workspaceName,
@@ -198,7 +210,11 @@ async function createCollection() {
         title: specTitle = '',
         version: specVersion = '',
         description: specDesc = '',
-        contact: specContact =  { name: specCName = '', url: specCURL = '', email: specEMail = '' },
+        contact: specContact = {
+          name: (specCName = ''),
+          url: (specCURL = ''),
+          email: (specEMail = ''),
+        },
       },
     } = specJSON;
     collection.info.description =
@@ -328,7 +344,9 @@ async function createCollection() {
             .replace(/}/g, '');
           switch (opElement) {
             case 'requestBody': {
-              const schema = operation.content['application/json']?.schema || operation.content['multipart/form-data']?.schema;
+              const schema =
+                operation.content['application/json']?.schema ||
+                operation.content['multipart/form-data']?.schema;
               schemas.push({
                 path: `${endpointFullPath}/request`,
                 schema: getSchema(schema),
@@ -347,11 +365,13 @@ async function createCollection() {
             }
             case 'responses': {
               Object.entries(operation).forEach(([code, response]) => {
-                const schema = response.content['application/json'].schema;
-                schemas.push({
-                  path: `${endpointFullPath}/response/${code}`,
-                  schema: getSchema(schema),
-                });
+                if (response.content) {
+                  const schema = response.content['application/json'].schema;
+                  schemas.push({
+                    path: `${endpointFullPath}/response/${code}`,
+                    schema: getSchema(schema),
+                  });
+                }
               });
               break;
             }
@@ -415,7 +435,9 @@ async function createCollection() {
 /**
  * Prepare globals with collection/enviroments for use as payload in Postman API create/update collection and environments
  * NOTE: Gets postman api key, x-api-key, oauth and writes local globals file for ./newman/uploadCollection.js
- * see openapi/postman/environment/restnest-postman.postman_globals.base.json
+ * see:
+ *  openapi/postman/environment/restnest-postman.postman_globals.json - uploadCollection configuration
+ *  openapi/postman/environment/restnest-secrets.postman_globals.json - api secrets
  */
 async function prepPostmanPublish() {
   try {
@@ -424,19 +446,48 @@ async function prepPostmanPublish() {
     const collection = require(collectionFile);
     const isCollectionAuthApiKey = collection.auth?.type === 'apikey';
     const isCollectionAuthBearer = collection.auth?.type === 'bearer';
-    const projectId = gcpAccount;
-    const client = new SecretManagerServiceClient();
     const keys = {};
-    keys.postman_api_key = await accessSecretVersion('postman_apikey', projectId, client);
-    keys.e2e_apikey = isCollectionAuthApiKey
-      ? await accessSecretVersion(serviceApikeyLookupName, projectId, client)
-      : '';
-    keys.e2e_client_id = isCollectionAuthBearer
-      ? await accessSecretVersion(serviceClientIdLookupName, projectId, client)
-      : '';
-    keys.e2e_client_secret = isCollectionAuthBearer
-      ? await accessSecretVersion(serviceClientSecretLookupName, projectId, client)
-      : '';
+
+    /**
+     * API Secrets
+     * Cloud Secrets rrequired when openapi/postman folder is injected in service repo as template (pipeline)
+     * Otherwise, local secrets will be managed for LOCAL USE ONLY
+     */
+    const isUsingCloudForSecrets = false; // Change according to need / context
+    const globalSecrets = getAllLocalSecrets(
+      globalsSecretsBasePath,
+      globalsSecretsPath,
+      isUsingCloudForSecrets
+    );
+    if (isUsingCloudForSecrets) {
+      keys.postman_api_key = await getGCPSecret('postman_apikey');
+      keys.e2e_apikey = isCollectionAuthApiKey ? await getGCPSecret(serviceApikeyLookupName) : '';
+      keys.e2e_client_id = isCollectionAuthBearer
+        ? await getGCPSecret(serviceClientIdLookupName)
+        : '';
+      keys.e2e_client_secret = isCollectionAuthBearer
+        ? await getGCPSecret(serviceClientSecretLookupName)
+        : '';
+      writeLocalSecret(globalSecrets, `postman-api-key-admin-local`, keys.postman_api_key);
+      writeLocalSecret(globalSecrets, `${serviceName}-e2e-api-key-local`, keys.e2e_apikey);
+      writeLocalSecret(globalSecrets, `${serviceName}-e2e-api-client-id-local`, keys.e2e_client_id);
+      writeLocalSecret(
+        globalSecrets,
+        `${serviceName}-e2e-api-client-secret-local`,
+        keys.e2e_client_secret
+      );
+
+      // Local secrets
+    } else {
+      keys.postman_api_key = getLocalSecret(globalSecrets, `postman-api-key-admin-local`);
+      keys.e2e_apikey = getLocalSecret(globalSecrets, `${serviceName}-e2e-api-key-local`);
+      keys.e2e_client_id = getLocalSecret(globalSecrets, `${serviceName}-e2e-api-client-id-local`);
+      keys.e2e_client_secret = getLocalSecret(
+        globalSecrets,
+        `${serviceName}-e2e-api-client-secret-local`
+      );
+    }
+
     fillGlobal(globals, collection, keys, isCollectionAuthApiKey, isCollectionAuthBearer);
   } catch (error) {
     console.error('Postman publish preperation failed', error);
@@ -444,26 +495,20 @@ async function prepPostmanPublish() {
   }
 
   // helpers
-  async function accessSecretVersion(name, projectId, client) {
-    const secretPath = `projects/${projectId}/secrets/${name}/versions/latest`;
-    const [secretVersion] = await client.accessSecretVersion({
-      name: secretPath,
-    });
-    if (!secretVersion?.payload?.data) {
-      throw new Error(`Secret retrieval failed - Name: ${name}`);
-    }
-    return (secretVersion?.payload?.data || '').toString();
-  }
-
   function fillGlobal(globals, collection, keys, isCollectionAuthApiKey, isCollectionAuthBearer) {
-    const environments = createEnvironments(collection, keys, isCollectionAuthApiKey, isCollectionAuthBearer);
+    const environments = createEnvironments(
+      collection,
+      keys,
+      isCollectionAuthApiKey,
+      isCollectionAuthBearer
+    );
     globals.values.forEach(value => {
       if (value.key === 'postman-api-key') {
         value.value = keys.postman_api_key;
       } else if (value.key === 'workspace_id') {
         value.value = workspaceId;
       } else if (value.key === 'workspace_name') {
-        value.value = workspaceName;  
+        value.value = workspaceName;
       } else if (value.key === 'service_name') {
         value.value = `${serviceName}${gitLastMergeHashSuffix}`;
       } else if (value.key === 'service_collection') {

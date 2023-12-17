@@ -12,7 +12,7 @@
 		},
 		{
 			"key": "postman-api-key",
-			"value": "<will be replaced automatically by openAPISetupPostman.js - requires gcloud auth login>",
+			"value": "<will be replaced automatically by openAPISetupPostman.js>",
 			"type": "secret",
 			"enabled": true
 		},

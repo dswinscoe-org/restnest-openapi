@@ -4,7 +4,6 @@
  */
 const { resolve } = require('path');
 const fs = require('fs');
-const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const { newmanRun, syncArraysOfKeyValueObject } = require('./helper/utils');
 const { runWorkspaceSyncLoader } = require('./restnest-postman-sync-collection');
 
@@ -21,6 +20,12 @@ const globalsFilename = 'restnest-e2e.postman_globals.json';
 const globalsPath = resolve(environmentE2ePath, globalsFilename);
 const globalsRepoPath = resolve(environmentsRepoPath, globalsRepoFilename);
 
+const globalsSecretsBasePath = resolve(
+  environmentsRepoPath,
+  'restnest-secrets.postman_globals.base.json'
+);
+const globalsSecretsPath = resolve(environmentsRepoPath, 'restnest-secrets.postman_globals.json');
+
 /**
  * Prepare globals with Postman APIKey for collection/environment local sync download
  * NOTE: Gets APIKey key from GCP Secret Manager - requires gcloud access to configured service account
@@ -36,14 +41,26 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
     fs.copyFileSync(globalsBasePath, globalsPath);
     const globals = require(globalsPath);
 
-    // Get Postman ApiKey from configured GCP service account
-    const client = new SecretManagerServiceClient();
-    const projectId = (
-      globals.values.find(global => global.key === 'gcp-service-account-project') || { value: '' }
-    ).value;
-    const postman_api_key = await accessSecretVersion(client, projectId, 'postman_apikey');
+    // Get locally managed secrets
+    let postman_api_key_admin;
+    const isUsingCloudForSecrets = false; // Change according to need / context
+    const globalSecrets = getAllLocalSecrets(globalsSecretsBasePath, globalsSecretsPath, isUsingCloudForSecrets, false);
+    // Lookup secret in cloud and save locally
+    if (isUsingCloudForSecrets) {
+      const cloudSecretsId = globals.values.find(
+        variable => variable.key === 'cloud-secrets-id' && !variable.value.startsWith('<')
+      )?.value;
+      postman_api_key_admin = await getGCPSecret('postman_apikey', cloudSecretsId);
+      writeLocalSecret(globalsSecretsPath, globalSecrets, 'postman-api-key-admin-local', postman_api_key_admin);
+    // Get locally-managed secret for LOCAL USE ONLY
+    } else {
+      postman_api_key_admin = getLocalSecret(globalSecrets, 'postman-apikey-admin-local');
+    }
+    if (!postman_api_key_admin) {
+      throw new Error('postman_api_key_admin missing');
+    }
 
-    fillGlobal(globals, postman_api_key);
+    fillGlobal(globals, postman_api_key_admin);
   } catch (error) {
     console.error(
       `\n ✅ -> Error preparing for Postman Sync with globals ${globalsBasePath}`,
@@ -52,29 +69,16 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
     process.exit(1);
   }
 
-  // helpers
-  async function accessSecretVersion(client, projectId, name) {
-    const secretPath = `projects/${projectId}/secrets/${name}/versions/latest`;
-    const [secretVersion] = await client.accessSecretVersion({
-      name: secretPath,
-    });
-    if (!secretVersion?.payload?.data) {
-      console.error(`Secret retrieval failed - Name: ${name} - ensure Google Cloud auth login`);
-      process.exit(1);
-    }
-    return secretVersion?.payload?.data?.toString();
-  }
-
   // On fresh install, transfer from restnest-postman globals 
   function persistBaseGlobals() {
     const globalsBase = JSON.parse(fs.readFileSync(globalsBasePath, { encoding: 'UTF8' }));
-    const gcpProjectId = globalsBase.values.find(
-      variable => variable.key === 'gcp-service-account-project' && !variable.value.startsWith('<')
+    const cloudSecretsId = globalsBase.values.find(
+      variable => variable.key === 'cloud-secrets-id' && !variable.value.startsWith('<')
     )?.value;
-    if (!gcpProjectId) {
+    if (!cloudSecretsId) {
       const globalsRepo = JSON.parse(fs.readFileSync(globalsRepoPath, { encoding: 'UTF8' }));
-      const repoProjectId = globalsRepo.values.find(
-        variable => variable.key === 'gcp-service-account-project' && !variable.value.startsWith('<')
+      const repoCloudSecretsId = globalsRepo.values.find(
+        variable => variable.key === 'cloud-secrets-id' && !variable.value.startsWith('<')
       )?.value;
       const repoWorkspaceSyncId = globalsRepo.values.find(
         variable => variable.key === 'repo_workspacesync_collection_id' && !variable.value.startsWith('<')
@@ -85,17 +89,17 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
       const e2eWorkspaceName = globalsRepo.values.find(
         variable => variable.key === 'e2e_workspace_name' && !variable.value.startsWith('<')
       )?.value;
-      if (!repoProjectId || !repoWorkspaceSyncId || !e2eWorkspaceId || !e2eWorkspaceName) {
+      if (!repoCloudSecretsId || !repoWorkspaceSyncId || !e2eWorkspaceId || !e2eWorkspaceName) {
         throw new Error(
           'Global variables for repo workspace are missing - globals from local repo setup were expected'
         );
       }
-      globalsBase.values.find(variable => variable.key === 'gcp-service-account-project').value = repoProjectId;
+      globalsBase.values.find(variable => variable.key === 'cloud-secrets-id').value = repoCloudSecretsId;
       globalsBase.values.find(variable => variable.key === 'repo_workspacesync_collection_id').value = repoWorkspaceSyncId;
       globalsBase.values.find(variable => variable.key === 'e2e_workspace_id').value = e2eWorkspaceId;
       globalsBase.values.find(variable => variable.key === 'e2e_workspace_name').value = e2eWorkspaceName;
-      fs.writeFileSync(globalsBasePath, JSON.stringify(globalsBase, null, 2));      
-    }
+      fs.writeFileSync(globalsBasePath, JSON.stringify(globalsBase, null, 2));
+    }    
   }
 
   function fillGlobal(globals, postman_api_key) {

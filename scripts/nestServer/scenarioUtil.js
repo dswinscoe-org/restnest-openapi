@@ -158,7 +158,7 @@ function generateWorkstepGlobals(workstepParams) {
     );
     if (currWorkstep.length !== 1) {
       throw new Error(
-        'Current _workstep_id not found in local collection: trigger quickSync or syncCollections and retry'
+        `_workstep_id "${workstepParams['_workstep_id']}" not found in local collection: trigger quickSync or syncCollections and retry`
       );
     }
 
