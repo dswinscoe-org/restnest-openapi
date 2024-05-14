@@ -114,11 +114,13 @@ async function prepPostmanSync(globalsBasePath, globalsPath, gitRepoName, taskNr
     // Get locally managed secrets
     let globalSecrets;
     let postman_api_key_admin = '';
+    const isPrompting = taskNr !== 'main';
     try {
       globalSecrets = getAllLocalSecrets(
         globalsSecretsBasePath,
         globalsSecretsPath,
-        isUsingCloudForSecrets
+        isUsingCloudForSecrets,
+        isPrompting
       );
       // Lookup secret in cloud and save locally
       if (isUsingCloudForSecrets) {
@@ -224,8 +226,10 @@ async function main() {
     console.error('Current repository does not have a remote origin and/or is not feature branch.');
     process.exit(1);
   }
+  // Expect RESTNEST instance git repo name to be format: restnest-openapi-*
+  // Forks from git repo in format: restnest-openapi-*.*, e.g. restnest-openapi-instance.me (.* ignored)
   const gitOriginSplit = gitOrigin.replace('.git', '').split('/');
-  const gitRepoName = gitOriginSplit[gitOriginSplit.length - 1];
+  const gitRepoName = gitOriginSplit[gitOriginSplit.length - 1].split('.')[0];
   if (!gitRepoName.startsWith('restnest-openapi-')) {
     console.error(
       `GIT_ORIGIN repo name ${gitRepoName} does not conform - expected forked restnest-openapi-[domainName]`
@@ -237,7 +241,9 @@ async function main() {
     taskNrSplit.length > 1
       ? Number.isNaN(parseInt(taskNrSplit[0]))
         ? Number.isNaN(parseInt(taskNrSplit[1]))
-          ? ''
+          ? gitFeature === 'refresh/main'
+            ? taskNrSplit[1]
+            : ''
           : taskNrSplit[1]
         : taskNrSplit[0]
       : '';

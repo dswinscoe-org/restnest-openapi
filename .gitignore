@@ -1,6 +1,9 @@
 .DS_Store
 node_modules
 yarn-error.log
+data/**/*.*
+!data/scripts/**/*.*
+!data/**/*.md
 openapi/postman/**/*.json
 !openapi/postman/collection/ServicePublish.postman_collection.json
 !openapi/postman/environment/restnest-postman.postman_globals.base.json

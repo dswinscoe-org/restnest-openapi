@@ -6,6 +6,11 @@ const { resolve } = require('path');
 const fs = require('fs');
 const { newmanRun, syncArraysOfKeyValueObject } = require('./helper/utils');
 const { runWorkspaceSyncLoader } = require('./restnest-postman-sync-collection');
+const {
+  getAllLocalSecrets,
+  getLocalSecret,
+  writeLocalSecret,
+} = require('../../openapi/postman/scripts/local/secrets');
 
 const repoCollectionsPath = resolve(__dirname, '../../restnest-postman/collections');
 const repoCollectionPath = resolve(repoCollectionsPath, 'WorkspaceSync.postman_collection.json');
@@ -34,7 +39,6 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
   console.log(`\n ✅ -> Preparing for Postman Sync with globals ${globalsBasePath} ...`);
 
   try {
-    // On new install, update globals.base from repo
     persistBaseGlobals();
 
     // Copy globals.base to globals
@@ -54,7 +58,7 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
       writeLocalSecret(globalsSecretsPath, globalSecrets, 'postman-api-key-admin-local', postman_api_key_admin);
     // Get locally-managed secret for LOCAL USE ONLY
     } else {
-      postman_api_key_admin = getLocalSecret(globalSecrets, 'postman-apikey-admin-local');
+      postman_api_key_admin = getLocalSecret(globalSecrets, 'postman-api-key-admin-local');
     }
     if (!postman_api_key_admin) {
       throw new Error('postman_api_key_admin missing');
@@ -69,13 +73,16 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
     process.exit(1);
   }
 
-  // On fresh install, transfer from restnest-postman globals 
+  /**
+   * Transfers restnest-postman/environment/postman_globals -> restnest-e2e/environment/postman_globals.base
+   * IMPORTANT: Must be run locally on new RESTNEST Instance creation, otherwise pipeline will fail 
+   */ 
   function persistBaseGlobals() {
     const globalsBase = JSON.parse(fs.readFileSync(globalsBasePath, { encoding: 'UTF8' }));
     const cloudSecretsId = globalsBase.values.find(
       variable => variable.key === 'cloud-secrets-id' && !variable.value.startsWith('<')
     )?.value;
-    if (!cloudSecretsId) {
+    if (typeof cloudSecretsId === 'undefined') {
       const globalsRepo = JSON.parse(fs.readFileSync(globalsRepoPath, { encoding: 'UTF8' }));
       const repoCloudSecretsId = globalsRepo.values.find(
         variable => variable.key === 'cloud-secrets-id' && !variable.value.startsWith('<')
@@ -89,7 +96,7 @@ async function prepPostmanSync(globalsBasePath, globalsPath) {
       const e2eWorkspaceName = globalsRepo.values.find(
         variable => variable.key === 'e2e_workspace_name' && !variable.value.startsWith('<')
       )?.value;
-      if (!repoCloudSecretsId || !repoWorkspaceSyncId || !e2eWorkspaceId || !e2eWorkspaceName) {
+      if (!repoWorkspaceSyncId || !e2eWorkspaceId || !e2eWorkspaceName) {
         throw new Error(
           'Global variables for repo workspace are missing - globals from local repo setup were expected'
         );

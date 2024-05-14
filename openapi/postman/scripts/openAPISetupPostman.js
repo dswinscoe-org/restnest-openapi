@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 const Converter = require('openapi-to-postmanv2');
 const { resolve } = require('path');
+const { URL } = require('url')
+const { Buffer } = require('node:buffer');
 const fs = require('fs');
+const https = require('https');
 const yaml = require('js-yaml');
 const toJsonSchema = require('@openapi-contrib/openapi-schema-to-json-schema');
 const { program } = require('commander');
 const { getGCPSecret } = require('./gcp/postmanApiKeyCheck');
 const { getAllLocalSecrets, getLocalSecret, writeLocalSecret } = require('./local/secrets');
+const { generateSpec } = require('./generate-swagger-parser');
 
 /**
  * Service Repo-dependent configuration
  * Assumes existence of de-referenced spec file for ALL service endpoints, e.g. openapi/generatedSpec/spec.yaml
- * - see openapi/generate-openapi.js for no-reference spec generation
+ * - see openapi/postman/scripts/generate-swagger-parser.js for no-reference spec generation
  */
 program
   .option(
@@ -21,9 +25,10 @@ program
   .option('--workspaceId <value>', 'Postman Repo Workspace Id')
   .option('--workspaceName <value>', 'Postman Repo Workspace Name')
   .option('--serviceName <value>', 'Postman Repo Service Name')
-  .option('--openApiFolder <value>', 'OpenAPI folder relative to this file')
-  .option('--noRefSpecFolder <value>', 'No-Reference Spec Folder')
-  .option('--noRefSpecName <value>', 'No-Reference Spec Filename')
+  .option('--openApiURL <value>', 'Service OpenAPI URL')
+  .option('--openApiFolder <value>', 'Service OpenAPI folder relative to this file')
+  .option('--configSpec <value>', 'Original source Spec name, relative to openApiFolder, e.g. config/spec.json')
+  .option('--noRefSpec <value>', 'Generated no-reference Spec name, relative to openApiFolder, e.g. generated-specs/spec.yaml')
   .option(
     '--serviceApiKeyLookupName <value>',
     'Optional service API key name for lookup',
@@ -42,85 +47,108 @@ program
   )
   .parse(process.argv);
 
-const {
-  cloudSecretsId,
-  globalNoRefSpecPath,
-  workspaceId,
-  workspaceName,
-  serviceName,
-  serviceApikeyLookupName,
-  headerApiKeyName,
-  serviceClientIdLookupName,
-  serviceClientSecretLookupName,
-} = prepServiceConfiguration(program.opts());
-const serviceDescription = `## OpenAPI-generated collection for ${serviceName} E2E tests`;
-
 // Collection/Environment paths from template (publishes to restnest-postman Postman Workspace)
-// see openapi/postman/environment/restnest-postman.postman_globals.base.json
 const gitLastMergeHash = process.env.GIT_LAST_MERGE_HASH || '';
 const gitLastMergeHashSuffix = gitLastMergeHash ? `-${gitLastMergeHash}` : `-${Date.now()}-0`;
 const collectionDir = resolve(__dirname, '../collection');
 const environmentDir = resolve(__dirname, '../environment');
-
 const globalsBasePath = resolve(environmentDir, 'restnest-postman.postman_globals.base.json');
 const globalsPath = resolve(environmentDir, 'restnest-postman.postman_globals.json');
-
 const globalsSecretsBasePath = resolve(
   environmentDir,
   'restnest-secrets.postman_globals.base.json'
 );
 const globalsSecretsPath = resolve(environmentDir, 'restnest-secrets.postman_globals.json');
 
-const collectionFile = resolve(
-  collectionDir,
-  `${serviceName}${gitLastMergeHashSuffix}.postman_collection.json`
-);
-
 /**
- * Prep service configuration
- * @returns Object - service configuration
+ * OpenAPI Download
+ * when openApiURL specified, downloads artifact and generates dereferenced spec
  */
-function prepServiceConfiguration(options) {
-  if (
-    !(
-      options.cloudSecretsId &&
-      options.workspaceId &&
-      options.workspaceName &&
-      options.serviceName &&
-      options.openApiFolder &&
-      options.noRefSpecFolder &&
-      options.noRefSpecName
-    )
-  ) {
-    console.error('Missing required parameters');
-    process.exit(1);
+async function downloadOpenAPI(config) {
+  const { configSpecPath, noRefSpecPath, openApiURL } = config;
+
+  if (openApiURL) {
+    try {
+      const configSpecOld = require(configSpecPath);
+      const maxRetries = 2;
+      let configSpec = {};
+      let retries = 0;
+      let done = false
+      while (!done && retries <= maxRetries) 
+      try {
+        await downloadFile(configSpecPath, openApiURL);
+        configSpec = JSON.parse(fs.readFileSync(configSpecPath, { encoding: 'UTF8' }));
+        done = true;
+      } catch (error) {
+        if (++retries <= maxRetries) {
+          console.warn('Problem downloading - wait 1 minute, ...');
+          setTimeout(function() {console.warn(`Retry ${retries} of ${maxRetries} ...`)}, 60000);
+        } else {
+          throw new Error(error);
+        }
+      }  
+      configSpec.servers = configSpecOld?.servers || [];
+      fs.writeFileSync(configSpecPath, JSON.stringify(configSpec, null, 2));
+      const { isGenerated } = await generateSpec(configSpecPath, noRefSpecPath);
+      if (!isGenerated) {
+        throw new error(`No-Ref Spec ${noRefSpecPath} could not be generated`);
+      }
+    } catch (error) {
+      console.error(`Problem downloading/generating OpenAPI ${openApiURL}`, error);
+      process.exit(1);
+    }
   }
-  const openApiFolder = resolve(__dirname, options.openApiFolder);
-  const globalNoRefSpecFolder = resolve(openApiFolder, options.noRefSpecFolder);
-  const globalNoRefSpecPath = resolve(globalNoRefSpecFolder, options.noRefSpecName);
-  return {
-    cloudSecretsId: options.cloudSecretsId,
-    globalNoRefSpecPath: globalNoRefSpecPath,
-    workspaceId: options.workspaceId,
-    workspaceName: options.workspaceName,
-    serviceName: options.serviceName,
-    serviceApikeyLookupName: options.serviceApiKeyLookupName,
-    headerApiKeyName: options.headerApiKeyName,
-    serviceClientIdLookupName: options.serviceClientIdLookupName,
-    serviceClientSecretLookupName: options.serviceClientSecretLookupName,
-  };
+
+  // helpers
+  function downloadFile(destinationPath, url) {
+    return new Promise((resolve, reject) => {
+      const globalSecrets = getAllLocalSecrets(
+        globalsSecretsBasePath,
+        globalsSecretsPath, false, false
+      );
+      const pass = getLocalSecret(globalSecrets, `aime-e2e-api-key-local`)
+      const sourceURL = new URL(url)
+      const auth = {
+        'Authorization': 'Basic ' + Buffer.from(`${pass}:${pass}`).toString('base64')
+      }
+      const options = {
+        method: 'GET',
+        hostname: sourceURL.hostname,
+        path: sourceURL.pathname,
+        port: sourceURL.port,
+        headers: auth
+      }
+      https
+        .get(options, response => {
+          const stream = fs.createWriteStream(destinationPath);
+          response.on('error', reject);
+          stream
+            .on('finish', () => {
+              stream.close();
+              console.log('Download Completed - ' + url);
+              resolve();
+            })
+            .on('error', reject);
+          response.pipe(stream);
+        })
+        .on('error', reject);
+    });
+  }
 }
 
 /**
  * Create Postman collection and transform according to schemas / responses
  * Collection generated for publishing in Postman workspace (see prepPostmanPublish)
  */
-async function createCollection() {
+async function createCollection(config) {
+  // Config params
+  const { noRefSpecPath, collectionFile, serviceName, headerApiKeyName } = config;
+
   // Initial Postman Collection Object - will be augmented
   const collection = {
     info: {
       name: `${serviceName}${gitLastMergeHashSuffix}`,
-      description: serviceDescription,
+      description: `## OpenAPI-generated collection for ${serviceName} E2E tests`,
       schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
     },
     item: [
@@ -142,14 +170,14 @@ async function createCollection() {
 
   // Create collection object from global, de-referenced, generated spec
   let converted = false;
-  const openapiData = yaml.load(fs.readFileSync(globalNoRefSpecPath));
+  const openapiData = yaml.load(fs.readFileSync(noRefSpecPath));
   Converter.convert(
-    { type: 'json', data: yaml.load(fs.readFileSync(globalNoRefSpecPath)) },
+    { type: 'json', data: yaml.load(fs.readFileSync(noRefSpecPath)) },
     { requestNameSource: 'URL', exampleParametersResolution: 'Schema' },
     (err, conversionResult) => {
       if (err || !conversionResult.result) {
         console.error(
-          `OpenAPI spec conversion error: ${globalNoRefSpecPath}`,
+          `OpenAPI spec conversion error: ${noRefSpecPath}`,
           err || !conversionResult.result
         );
       } else
@@ -159,15 +187,10 @@ async function createCollection() {
           createCollectionSecurity(collection, openapiData);
           createCollectionServers(collection, openapiData);
           createCollectionVariables(collection, openapiData);
-          console.log(
-            `\n ✅ -> OpenAPI spec ${globalNoRefSpecPath} converted for Postman collection`
-          );
+          console.log(`\n ✅ -> OpenAPI spec ${noRefSpecPath} converted for Postman collection`);
           converted = true;
         } catch (error) {
-          console.error(
-            `\n ✅ -> OpenAPI spec ${globalNoRefSpecPath} could not be converted`,
-            error
-          );
+          console.error(`\n ✅ -> OpenAPI spec ${noRefSpecPath} could not be converted`, error);
         }
     }
   );
@@ -366,7 +389,9 @@ async function createCollection() {
             case 'responses': {
               Object.entries(operation).forEach(([code, response]) => {
                 if (response.content) {
-                  const schema = response.content['application/json'].schema;
+                  const schema =
+                    response.content['application/json']?.schema ||
+                    response.content['application/octet-stream']?.schema;
                   schemas.push({
                     path: `${endpointFullPath}/response/${code}`,
                     schema: getSchema(schema),
@@ -439,7 +464,19 @@ async function createCollection() {
  *  openapi/postman/environment/restnest-postman.postman_globals.json - uploadCollection configuration
  *  openapi/postman/environment/restnest-secrets.postman_globals.json - api secrets
  */
-async function prepPostmanPublish() {
+async function prepPostmanPublish(config) {
+  // Config params
+  const {
+    cloudSecretsId,
+    collectionFile,
+    workspaceId,
+    workspaceName,
+    serviceName,
+    serviceApikeyLookupName,
+    serviceClientIdLookupName,
+    serviceClientSecretLookupName,
+  } = config;
+
   try {
     fs.copyFileSync(globalsBasePath, globalsPath);
     const globals = require(globalsPath);
@@ -450,14 +487,16 @@ async function prepPostmanPublish() {
 
     /**
      * API Secrets
-     * Cloud Secrets rrequired when openapi/postman folder is injected in service repo as template (pipeline)
-     * Otherwise, local secrets will be managed for LOCAL USE ONLY
+     * cloudSecretsId (e.g GCP projectId)) parameter required when isUsingCloudForSecrets === true
+     * Otherwise, local secrets will be managed for temp LOCAL USE ONLY (also via environment vars for pipelines)
      */
     const isUsingCloudForSecrets = false; // Change according to need / context
+    const isUsingPipelineForSecrets = cloudSecretsId === 'pipeline';
     const globalSecrets = getAllLocalSecrets(
       globalsSecretsBasePath,
       globalsSecretsPath,
-      isUsingCloudForSecrets
+      isUsingCloudForSecrets,
+      !isUsingPipelineForSecrets
     );
     if (isUsingCloudForSecrets) {
       keys.postman_api_key = await getGCPSecret('postman_apikey');
@@ -578,8 +617,63 @@ async function prepPostmanPublish() {
   }
 }
 
-async function main() {
-  createCollection();
-  prepPostmanPublish();
+async function main(commanderOpts) {
+  // Prepare configuration with commander option parameters
+  const config = prepServiceConfiguration(commanderOpts);
+
+  // Add collection file name to config
+  const { serviceName } = config;
+  config.collectionFile = resolve(
+    collectionDir,
+    `${serviceName}${gitLastMergeHashSuffix}.postman_collection.json`
+  );
+
+  // OpenAPI download (see openApiURL)
+  await downloadOpenAPI(config);
+
+  // Creation Service Collection
+  await createCollection(config);
+
+  // Prepare for collection & environment upload to Postman Repo
+  await prepPostmanPublish(config);
+
+  // helpers
+  /**
+   * Prep service configuration
+   * @returns Object - service configuration
+   */
+  function prepServiceConfiguration(options) {
+    // Check for required options
+    if (
+      !(
+        options.cloudSecretsId &&
+        options.workspaceId &&
+        options.workspaceName &&
+        options.serviceName &&
+        options.openApiFolder &&
+        options.configSpec &&
+        options.noRefSpec
+      )
+    ) {
+      console.error('Missing required parameters');
+      process.exit(1);
+    }
+    const openApiFolder = resolve(__dirname, options.openApiFolder);
+    const noRefSpecPath = resolve(openApiFolder, options.noRefSpec);
+    const configSpecPath = resolve(openApiFolder, options.configSpec);
+    return {
+      cloudSecretsId: options.cloudSecretsId,
+      openApiURL: options.openApiURL || '',
+      configSpecPath: configSpecPath,
+      noRefSpecPath: noRefSpecPath,
+      workspaceId: options.workspaceId,
+      workspaceName: options.workspaceName,
+      serviceName: options.serviceName,
+      serviceApikeyLookupName: options.serviceApiKeyLookupName,
+      headerApiKeyName: options.headerApiKeyName,
+      serviceClientIdLookupName: options.serviceClientIdLookupName,
+      serviceClientSecretLookupName: options.serviceClientSecretLookupName,
+    };
+  }
 }
-main();
+main(program.opts());

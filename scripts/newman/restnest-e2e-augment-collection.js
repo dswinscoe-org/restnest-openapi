@@ -71,6 +71,13 @@ module.exports.augmentCollectionWithServices = function (
               disabled: true,
               description: 'string, scenario folder name for environment seeding',
             },
+            {
+              key: 'scenarioWriteFolder',
+              value: '',
+              disabled: true,
+              description:
+                'string, scenario write folder name (relative to root), and environment var name, eg. openapi/config, openApi.chat/completions/post/response/openai-openapi',
+            },
           ],
         },
         description: 'Scenarios Folder Trigger',
@@ -100,36 +107,47 @@ module.exports.augmentCollectionWithServices = function (
       },
     ];
 
-    // Triggers/Scenarios folder setup
-    const triggers = restnestCollection.item[1];
-    let triggerScenarios = triggers.item.find(folder => folder.name === 'Scenarios');
-    if (!triggerScenarios) {
-      triggers.item.push({
-        name: 'Scenarios',
-        item: [],
-        event: scenariosEvent,
-        description: 'Auto-generated Triggers for all configured Scenarios',
-      });
-      triggers.item = sortItemsByName(triggers.item);
-      triggerScenarios = triggers.item.find(folder => folder.name === 'Scenarios');
-    }
-
-    // Map all scenario requests
-    const scenarios = findAllScenarios(restnestCollection.item[0]);
-    const scenariosMap = {};
-    scenarios.forEach(scenario => {
-      if (!scenariosMap[scenario.folder]) {
-        scenariosMap[scenario.folder] = scenario.folderId;
+    // Expected Triggers Root
+    const triggers = restnestCollection.item.find(folder => folder.name === 'Triggers');
+    if (triggers) {
+      // Triggers/Scenarios folder setup
+      let triggerScenarios = triggers.item.find(folder => folder.name === 'Scenarios');
+      if (!triggerScenarios) {
+        triggers.item.push({
+          name: 'Scenarios',
+          item: [],
+          event: scenariosEvent,
+          description: 'Auto-generated Triggers for all configured Scenarios',
+        });
+        triggers.item = sortItemsByName(triggers.item);
+        triggerScenarios = triggers.item.find(folder => folder.name === 'Scenarios');
       }
-    });
 
-    // Add triggers to Triggers/Scenarios folder
-    triggerScenarios.item = [];
-    Object.keys(scenariosMap).forEach(key => {
-      const trigger = { ...triggerRequest };
-      trigger.name = key;
-      triggerScenarios.item.push(trigger);
-    });
+      // Map all scenario requests
+      const scenarios = findAllScenarios(restnestCollection.item[0]);
+      const scenariosMap = {};
+      scenarios.forEach(scenario => {
+        if (!scenariosMap[scenario.folder]) {
+          scenariosMap[scenario.folder] = scenario.folderId;
+        }
+      });
+
+      // Add triggers to Triggers/Scenarios folder
+      Object.keys(scenariosMap).forEach(key => {
+        if (!triggerScenarios.item.find((trigger) => trigger.name === key)) {
+          const trigger = { ...triggerRequest };
+          trigger.name = key;
+          triggerScenarios.item.push(trigger);
+        }
+      });
+
+      // Remove triggers from Triggers/Scenarios folder when no longer mapped
+      triggerScenarios.item = triggerScenarios.item.filter(trigger => !!scenariosMap[trigger.name]);
+      triggerScenarios.item = sortItemsByName(triggerScenarios.item)
+
+    } else {
+      throw new Error('Expected root-level Triggers folder missing!');
+    }
 
     // helpers
     // Find all scenario requests and return as array
@@ -316,7 +334,10 @@ module.exports.augmentCollectionWithServices = function (
         // comment/disable events
         item.event = item.event?.map(event => {
           if ((event.listen === 'test' || event.listen === 'prerequest') && event.script?.exec) {
-            event.script.exec = event.script.exec.map(line => `${disabledScriptComment}${line}`);
+            event.script.exec = event.script.exec.map(
+              line =>
+                `${line.startsWith(disabledScriptComment) ? '' : disabledScriptComment}${line}`
+            );
           }
           return event;
         });
@@ -324,6 +345,7 @@ module.exports.augmentCollectionWithServices = function (
       // Copy endpoint to workstep item and overwrite with item variables
       function copyRequest(endpoint, item) {
         item.request.method = endpoint.request.method;
+        item.request.body = endpoint.request.body;
         item.request.url.raw = endpoint.request.url.raw;
         item.request.url.host = endpoint.request.url.host;
         item.request.url.query = combineArrays(item.request.url.query, endpoint.request.url.query);

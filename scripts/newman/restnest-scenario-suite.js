@@ -92,7 +92,7 @@ async function runScenario(scenario) {
     fs.mkdirSync(newmanReportsPath, { recursive: true });
     const reportsPathHTML = path.join(
       newmanReportsPath,
-      `${scenario.scenarioFolderId}${iteration}.html`
+      `${scenario.scenarioFolderId}-${scenario.timestampStart}${iteration}.html`
     );
     const reportsPathXML = path.join(
       newmanReportsPath,
@@ -216,13 +216,30 @@ async function runScenario(scenario) {
       const envKeys = folderParams.filter((param, index) => (index + 1) % 2 === 0);
       folders.forEach((folder, index) => {
         if (envKeys && index < envKeys.length && envKeys[index]) {
-          const envValue = env.values.find(value => value.key === envKeys[index].trim())?.value || [];
-          envValue.forEach(value => {
-            const filename = value.name;
-            const content = value.content.join('\n');
-            const targetFolderPath = path.join(__dirname, '../../', folder, filename);
-            fs.writeFileSync(targetFolderPath, content);
-          });
+          const envValue =
+            env.values.find(value => value.key === envKeys[index].trim())?.value || [];
+          // content wrapper, with name/content properties
+          if (Array.isArray(envValue) && envValue[0]?.name && envValue[0]?.content) {
+            envValue.forEach(value => {
+              const filename = value.name;
+              const content = value.content.join('\n');
+              const targetFolderPath = path.join(__dirname, '../../', folder);
+              try {
+                fs.mkdirSync(targetFolderPath);
+              } catch (e) {}
+              const targetFilename = path.join(targetFolderPath, filename);
+              fs.writeFileSync(targetFilename, content);
+            });
+            // default, save's the env variable as string to filename (expected dot convention, name.reponseVariableName)
+          } else {
+            const filename = `${envKeys[index].split('.')[0]}.json`;
+            const targetFolderPath = path.join(__dirname, '../../', folder);
+            try {
+              fs.mkdirSync(targetFolderPath);
+            } catch (e) {}
+            const targetFilename = path.join(targetFolderPath, filename);
+            fs.writeFileSync(targetFilename, JSON.stringify(envValue, null, 2));
+          }
         }
       });
     }

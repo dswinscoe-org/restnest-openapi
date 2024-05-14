@@ -249,6 +249,14 @@ function augmentCollectionWithServices() {
               console.warn(`❗ Schema not found for ${schemaPath} - assuming no body`);
             } else {
               let schemaFieldList = [];
+              // allOf Handling - merge all properties
+              if (schema.allOf) {
+                schema.allOf.forEach(subschema => {
+                  const fieldList = [];
+                  schemaFieldMockList(subschema.properties, fieldList);
+                  schemaFieldList = [...schemaFieldList, ...fieldList];
+                });
+              } else 
               // Preface all oneOf properties with index
               if (schema.oneOf) {
                 schema.oneOf.forEach((schema, schemaIndex) => {
@@ -259,7 +267,8 @@ function augmentCollectionWithServices() {
                   });
                   schemaFieldList = [...schemaFieldList, ...fieldList];
                 });
-              } else {
+              } else
+              if (schema.properties) {
                 schemaFieldMockList(schema.properties, schemaFieldList);
               }
               queryParams.push(...schemaFieldList);
