@@ -26,6 +26,21 @@ module.exports.workflowMeta = async function (startTimestamp, req, res, next) {
   if (req.query['postman_request_id']) {
     // Lookup Postman collection for Postman globals workstep metadata variables
     try {
+      // Check for meta data query parameters, e.g. _param_metadata
+      const metadataKeys = Object.keys(req.query).filter((param) => param.endsWith('_metadata'));
+      if (metadataKeys) {
+        try {
+          postmanVars.metadata = [];
+          metadataKeys.forEach((key) => {
+            const metaDataPath = resolve(__dirname, '../../', req.query[key]);
+            const metaData = JSON.parse(fs.readFileSync(metaDataPath, { encoding: 'UTF8' }));
+            const metaDataKey= `${key.split('_')[1]}.${req.query['_workstep_endpoint']}/${req.query['_workstep_service']}`;
+            postmanVars.metadata = [...postmanVars.metadata, ...[{[metaDataKey]: metaData}]];
+          });
+        } catch (err) {
+          throw new Error(`No metadata for ${key} - _metadata suffixed params require correct file path`)
+        }          
+      }
       postmanVars.globals = [...postmanVars.globals, ...syncWorkstepMetaGlobals(req.query)];
       res.json(postmanVars);
     } catch (err) {
@@ -204,7 +219,7 @@ module.exports.triggeredRunReport = function (req, res, next) {
     const triggerPath = resolve(__dirname, 'triggers', `${triggerPathId}.json`);
     const trigger = JSON.parse(fs.readFileSync(triggerPath, 'utf8'));
     const iteration = trigger.iteration > 1 ? `-${trigger.iteration}` : '';
-    const scenarioFolderId = trigger.scenarioFolderId;
+    const scenarioFolderId = `${trigger.scenarioFolderId}-${trigger.timestampStart}`;
     const reportPath = resolve(__dirname, '../newman', 'reports', `${scenarioFolderId}${iteration}.html`);
     const prelimReportPath = resolve(
       __dirname,
@@ -253,14 +268,15 @@ module.exports.triggeredRunReport = function (req, res, next) {
         '<html>',
         '<head>',
         '<title>Newman Preliminary Report</title>',
-        '<script>setTimeout(() => {document.location.reload();}, 10000);</script>',
+        '<script>setTimeout(() => {document.location.reload();}, 5000);</script>',
+        '<script>setTimeout(() => {window.scrollTo(0, document.body.scrollHeight);}, 100);</script>',
         '</head>',
         '<body>',
         `<h2>Running ${trigger.scenarioFolder}</h2>`,
         `<pre>${JSON.stringify(trigger, null, 2)}</pre>`,
         '<div>',
         '<p><strong>*** TEST IN PROGRESS ***</strong></p>',
-        '<p>This page will auto-refresh every 10 seconds until test is complete</p>',
+        '<p>This page will auto-refresh every 5 seconds until test is complete</p>',
         '</div>',
         '</body>',
         '</html>',
